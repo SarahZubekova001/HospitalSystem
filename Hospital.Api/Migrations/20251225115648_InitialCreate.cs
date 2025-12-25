@@ -41,7 +41,7 @@ namespace Hospital.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Cities",
+                name: "City",
                 columns: table => new
                 {
                     postal_code = table.Column<string>(type: "char(5)", maxLength: 5, nullable: false),
@@ -49,11 +49,11 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Cities", x => x.postal_code);
+                    table.PrimaryKey("PK_City", x => x.postal_code);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Diagnoses",
+                name: "Diagnosis",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -64,7 +64,7 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Diagnoses", x => x.id);
+                    table.PrimaryKey("PK_Diagnosis", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -82,7 +82,7 @@ namespace Hospital.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Medications",
+                name: "Medication",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -92,11 +92,11 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Medications", x => x.id);
+                    table.PrimaryKey("PK_Medication", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Roles",
+                name: "Role",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -105,11 +105,11 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Roles", x => x.id);
+                    table.PrimaryKey("PK_Role", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Specializations",
+                name: "Specialization",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -118,11 +118,11 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Specializations", x => x.id);
+                    table.PrimaryKey("PK_Specialization", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Persons",
+                name: "Person",
                 columns: table => new
                 {
                     birth_number = table.Column<string>(type: "char(11)", maxLength: 11, nullable: false),
@@ -135,11 +135,11 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Persons", x => x.birth_number);
+                    table.PrimaryKey("PK_Person", x => x.birth_number);
                     table.ForeignKey(
-                        name: "FK_Persons_Cities_city_postal_code",
+                        name: "FK_Person_City_city_postal_code",
                         column: x => x.city_postal_code,
-                        principalTable: "Cities",
+                        principalTable: "City",
                         principalColumn: "postal_code");
                 });
 
@@ -158,15 +158,15 @@ namespace Hospital.Api.Migrations
                 {
                     table.PrimaryKey("PK_Staff", x => x.id);
                     table.ForeignKey(
-                        name: "FK_Staff_Persons_birth_number",
+                        name: "FK_Staff_Person_birth_number",
                         column: x => x.birth_number,
-                        principalTable: "Persons",
+                        principalTable: "Person",
                         principalColumn: "birth_number",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Staff_Specializations_specialization_id",
+                        name: "FK_Staff_Specialization_specialization_id",
                         column: x => x.specialization_id,
-                        principalTable: "Specializations",
+                        principalTable: "Specialization",
                         principalColumn: "id");
                 });
 
@@ -185,15 +185,15 @@ namespace Hospital.Api.Migrations
                 {
                     table.PrimaryKey("PK_User_Account", x => x.id);
                     table.ForeignKey(
-                        name: "FK_User_Account_Persons_person_id",
+                        name: "FK_User_Account_Person_person_id",
                         column: x => x.person_id,
-                        principalTable: "Persons",
+                        principalTable: "Person",
                         principalColumn: "birth_number",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_User_Account_Roles_role_id",
+                        name: "FK_User_Account_Role_role_id",
                         column: x => x.role_id,
-                        principalTable: "Roles",
+                        principalTable: "Role",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -221,7 +221,7 @@ namespace Hospital.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Patients",
+                name: "Patient",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -234,21 +234,21 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Patients", x => x.id);
+                    table.PrimaryKey("PK_Patient", x => x.id);
                     table.ForeignKey(
-                        name: "FK_Patients_Insurance_Company_insurance_company_id",
+                        name: "FK_Patient_Insurance_Company_insurance_company_id",
                         column: x => x.insurance_company_id,
                         principalTable: "Insurance_Company",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Patients_Persons_birth_number",
+                        name: "FK_Patient_Person_birth_number",
                         column: x => x.birth_number,
-                        principalTable: "Persons",
+                        principalTable: "Person",
                         principalColumn: "birth_number",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Patients_Staff_primary_doctor_id",
+                        name: "FK_Patient_Staff_primary_doctor_id",
                         column: x => x.primary_doctor_id,
                         principalTable: "Staff",
                         principalColumn: "id");
@@ -277,7 +277,7 @@ namespace Hospital.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Appointments",
+                name: "Appointment",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -291,29 +291,29 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Appointments", x => x.id);
+                    table.PrimaryKey("PK_Appointment", x => x.id);
                     table.ForeignKey(
-                        name: "FK_Appointments_Appointment_Slot_appointment_slot_id",
+                        name: "FK_Appointment_Appointment_Slot_appointment_slot_id",
                         column: x => x.appointment_slot_id,
                         principalTable: "Appointment_Slot",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Appointments_Appointment_Status_status_id",
+                        name: "FK_Appointment_Appointment_Status_status_id",
                         column: x => x.status_id,
                         principalTable: "Appointment_Status",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Appointments_Appointment_Type_appointment_type_id",
+                        name: "FK_Appointment_Appointment_Type_appointment_type_id",
                         column: x => x.appointment_type_id,
                         principalTable: "Appointment_Type",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Appointments_Patients_patient_id",
+                        name: "FK_Appointment_Patient_patient_id",
                         column: x => x.patient_id,
-                        principalTable: "Patients",
+                        principalTable: "Patient",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -334,15 +334,15 @@ namespace Hospital.Api.Migrations
                 {
                     table.PrimaryKey("PK_Medical_Record", x => x.id);
                     table.ForeignKey(
-                        name: "FK_Medical_Record_Appointments_appointment_id",
+                        name: "FK_Medical_Record_Appointment_appointment_id",
                         column: x => x.appointment_id,
-                        principalTable: "Appointments",
+                        principalTable: "Appointment",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Medical_Record_Patients_patient_id",
+                        name: "FK_Medical_Record_Patient_patient_id",
                         column: x => x.patient_id,
-                        principalTable: "Patients",
+                        principalTable: "Patient",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
@@ -354,7 +354,7 @@ namespace Hospital.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Prescriptions",
+                name: "Prescription",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -367,20 +367,41 @@ namespace Hospital.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Prescriptions", x => x.id);
+                    table.PrimaryKey("PK_Prescription", x => x.id);
                     table.ForeignKey(
-                        name: "FK_Prescriptions_Medical_Record_medical_record_id",
+                        name: "FK_Prescription_Medical_Record_medical_record_id",
                         column: x => x.medical_record_id,
                         principalTable: "Medical_Record",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_Prescriptions_Medications_medication_id",
+                        name: "FK_Prescription_Medication_medication_id",
                         column: x => x.medication_id,
-                        principalTable: "Medications",
+                        principalTable: "Medication",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Appointment_appointment_slot_id",
+                table: "Appointment",
+                column: "appointment_slot_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Appointment_appointment_type_id",
+                table: "Appointment",
+                column: "appointment_type_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Appointment_patient_id",
+                table: "Appointment",
+                column: "patient_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Appointment_status_id",
+                table: "Appointment",
+                column: "status_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Appointment_Slot_staff_id",
@@ -388,29 +409,8 @@ namespace Hospital.Api.Migrations
                 column: "staff_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Appointments_appointment_slot_id",
-                table: "Appointments",
-                column: "appointment_slot_id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Appointments_appointment_type_id",
-                table: "Appointments",
-                column: "appointment_type_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Appointments_patient_id",
-                table: "Appointments",
-                column: "patient_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Appointments_status_id",
-                table: "Appointments",
-                column: "status_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Diagnoses_icd10_code",
-                table: "Diagnoses",
+                name: "IX_Diagnosis_icd10_code",
+                table: "Diagnosis",
                 column: "icd10_code",
                 unique: true);
 
@@ -443,45 +443,45 @@ namespace Hospital.Api.Migrations
                 column: "staff_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Patients_birth_number",
-                table: "Patients",
+                name: "IX_Patient_birth_number",
+                table: "Patient",
                 column: "birth_number",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Patients_insurance_company_id",
-                table: "Patients",
+                name: "IX_Patient_insurance_company_id",
+                table: "Patient",
                 column: "insurance_company_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Patients_primary_doctor_id",
-                table: "Patients",
+                name: "IX_Patient_primary_doctor_id",
+                table: "Patient",
                 column: "primary_doctor_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Persons_city_postal_code",
-                table: "Persons",
+                name: "IX_Person_city_postal_code",
+                table: "Person",
                 column: "city_postal_code");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Prescriptions_medical_record_id",
-                table: "Prescriptions",
+                name: "IX_Prescription_medical_record_id",
+                table: "Prescription",
                 column: "medical_record_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Prescriptions_medication_id",
-                table: "Prescriptions",
+                name: "IX_Prescription_medication_id",
+                table: "Prescription",
                 column: "medication_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Roles_name",
-                table: "Roles",
+                name: "IX_Role_name",
+                table: "Role",
                 column: "name",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Specializations_name",
-                table: "Specializations",
+                name: "IX_Specialization_name",
+                table: "Specialization",
                 column: "name",
                 unique: true);
 
@@ -529,10 +529,10 @@ namespace Hospital.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Diagnoses");
+                name: "Diagnosis");
 
             migrationBuilder.DropTable(
-                name: "Prescriptions");
+                name: "Prescription");
 
             migrationBuilder.DropTable(
                 name: "User_Account");
@@ -544,13 +544,13 @@ namespace Hospital.Api.Migrations
                 name: "Medical_Record");
 
             migrationBuilder.DropTable(
-                name: "Medications");
+                name: "Medication");
 
             migrationBuilder.DropTable(
-                name: "Roles");
+                name: "Role");
 
             migrationBuilder.DropTable(
-                name: "Appointments");
+                name: "Appointment");
 
             migrationBuilder.DropTable(
                 name: "Appointment_Slot");
@@ -562,7 +562,7 @@ namespace Hospital.Api.Migrations
                 name: "Appointment_Type");
 
             migrationBuilder.DropTable(
-                name: "Patients");
+                name: "Patient");
 
             migrationBuilder.DropTable(
                 name: "Insurance_Company");
@@ -571,13 +571,13 @@ namespace Hospital.Api.Migrations
                 name: "Staff");
 
             migrationBuilder.DropTable(
-                name: "Persons");
+                name: "Person");
 
             migrationBuilder.DropTable(
-                name: "Specializations");
+                name: "Specialization");
 
             migrationBuilder.DropTable(
-                name: "Cities");
+                name: "City");
         }
     }
 }

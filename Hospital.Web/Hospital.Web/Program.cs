@@ -6,6 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
+builder.Services.AddHttpClient("Api", client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7183/"); 
+});
 
 var app = builder.Build();
 
@@ -22,6 +26,7 @@ else
 }
 
 app.UseHttpsRedirection();
+
 
 
 app.UseAntiforgery();

@@ -68,7 +68,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("StatusId");
 
-                    b.ToTable("Appointments");
+                    b.ToTable("Appointment", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.AppointmentSlot", b =>
@@ -100,7 +100,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("Appointment_Slot");
+                    b.ToTable("Appointment_Slot", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.AppointmentStatus", b =>
@@ -120,7 +120,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Appointment_Status");
+                    b.ToTable("Appointment_Status", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.AppointmentType", b =>
@@ -149,7 +149,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Appointment_Type");
+                    b.ToTable("Appointment_Type", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.City", b =>
@@ -167,7 +167,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasKey("PostalCode");
 
-                    b.ToTable("Cities");
+                    b.ToTable("City", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Diagnosis", b =>
@@ -201,7 +201,7 @@ namespace Hospital.Api.Migrations
                     b.HasIndex("Icd10Code")
                         .IsUnique();
 
-                    b.ToTable("Diagnoses");
+                    b.ToTable("Diagnosis", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.InsuranceCompany", b =>
@@ -230,7 +230,7 @@ namespace Hospital.Api.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Insurance_Company");
+                    b.ToTable("Insurance_Company", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.MedicalRecord", b =>
@@ -277,7 +277,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("Medical_Record");
+                    b.ToTable("Medical_Record", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Medication", b =>
@@ -302,7 +302,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Medications");
+                    b.ToTable("Medication", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Patient", b =>
@@ -346,7 +346,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("PrimaryDoctorId");
 
-                    b.ToTable("Patients");
+                    b.ToTable("Patient", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Person", b =>
@@ -392,7 +392,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("CityPostalCode");
 
-                    b.ToTable("Persons");
+                    b.ToTable("Person", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Prescription", b =>
@@ -432,7 +432,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("MedicationId");
 
-                    b.ToTable("Prescriptions");
+                    b.ToTable("Prescription", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Role", b =>
@@ -455,7 +455,7 @@ namespace Hospital.Api.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Roles");
+                    b.ToTable("Role", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Specialization", b =>
@@ -478,7 +478,7 @@ namespace Hospital.Api.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Specializations");
+                    b.ToTable("Specialization", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Staff", b =>
@@ -521,7 +521,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("SpecializationId");
 
-                    b.ToTable("Staff");
+                    b.ToTable("Staff", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.UserAccount", b =>
@@ -565,7 +565,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("RoleId");
 
-                    b.ToTable("User_Account");
+                    b.ToTable("User_Account", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.WorkingHours", b =>
@@ -597,7 +597,7 @@ namespace Hospital.Api.Migrations
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("Working_Hours");
+                    b.ToTable("Working_Hours", (string)null);
                 });
 
             modelBuilder.Entity("Hospital.Api.Entities.Appointment", b =>

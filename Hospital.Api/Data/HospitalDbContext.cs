@@ -62,5 +62,24 @@ public class HospitalDbContext : DbContext
             .HasForeignKey<MedicalRecord>(m => m.AppointmentId);
 
         base.OnModelCreating(modelBuilder);
+
+
+        modelBuilder.Entity<City>().ToTable("City");
+        modelBuilder.Entity<Person>().ToTable("Person");
+        modelBuilder.Entity<Role>().ToTable("Role");
+        modelBuilder.Entity<UserAccount>().ToTable("User_Account");
+        modelBuilder.Entity<Patient>().ToTable("Patient");
+        modelBuilder.Entity<Staff>().ToTable("Staff");
+        modelBuilder.Entity<InsuranceCompany>().ToTable("Insurance_Company");
+        modelBuilder.Entity<Specialization>().ToTable("Specialization");
+        modelBuilder.Entity<Diagnosis>().ToTable("Diagnosis");
+        modelBuilder.Entity<Medication>().ToTable("Medication");
+        modelBuilder.Entity<AppointmentStatus>().ToTable("Appointment_Status");
+        modelBuilder.Entity<AppointmentType>().ToTable("Appointment_Type");
+        modelBuilder.Entity<WorkingHours>().ToTable("Working_Hours");
+        modelBuilder.Entity<AppointmentSlot>().ToTable("Appointment_Slot");
+        modelBuilder.Entity<Appointment>().ToTable("Appointment");
+        modelBuilder.Entity<MedicalRecord>().ToTable("Medical_Record");
+        modelBuilder.Entity<Prescription>().ToTable("Prescription");
     }
 }

@@ -1,0 +1,50 @@
+﻿@page "/login"
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Prihlásenie</h3>
+
+<div style="max-width:420px">
+    <div>
+        <label>Email</label><br />
+        <input @bind="email" />
+    </div>
+
+    <div style="margin-top:8px">
+        <label>Heslo</label><br />
+        <input type="password" @bind="password" />
+    </div>
+
+    <div style="margin-top:12px">
+        <button @onclick="DoLogin">Prihlásiť</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <p style="color:red">@error</p>
+    }
+</div>
+
+@code {
+    private string email = "";
+    private string password = "";
+    private string? error;
+
+    private async Task DoLogin()
+    {
+        error = null;
+
+        var resp = await Http.PostAsJsonAsync("https://localhost:7183/api/auth/login",
+            new { Email = email, Password = password });
+
+        if (resp.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/");
+            return;
+        }
+
+        error = await resp.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(error))
+            error = "Prihlásenie zlyhalo.";
+    }
+}
