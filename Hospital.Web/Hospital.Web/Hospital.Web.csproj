@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\Hospital.Shared\Hospital.Shared.csproj" />
     <ProjectReference Include="..\Hospital.Web.Client\Hospital.Web.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.0.11" />
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 
 </Project>

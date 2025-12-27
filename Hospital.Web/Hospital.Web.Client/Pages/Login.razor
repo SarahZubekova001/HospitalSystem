@@ -1,6 +1,11 @@
 ﻿@page "/login"
+@using Hospital.Web.Client.Auth
+@using Microsoft.AspNetCore.Components
+@using System.Web
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject ApiAuthStateProvider AuthState
+
 
 <h3>Prihlásenie</h3>
 
@@ -30,16 +35,31 @@
     private string password = "";
     private string? error;
 
+    private string returnUrl = "/";
+
+    protected override void OnInitialized()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = HttpUtility.ParseQueryString(uri.Query);
+        var url = query["returnUrl"];
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            returnUrl = url!;
+        }
+    }
+
     private async Task DoLogin()
     {
         error = null;
 
-        var resp = await Http.PostAsJsonAsync("https://localhost:7183/api/auth/login",
+        var resp = await Http.PostAsJsonAsync("/api/auth/login",
             new { Email = email, Password = password });
 
         if (resp.IsSuccessStatusCode)
         {
-            Nav.NavigateTo("/");
+            AuthState.Refresh();
+
+            Nav.NavigateTo(returnUrl, forceLoad: true);
             return;
         }
 

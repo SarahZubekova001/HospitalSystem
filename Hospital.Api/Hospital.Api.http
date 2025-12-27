@@ -4,3 +4,19 @@ GET {{Hospital.Api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+POST http://localhost:5103/api/auth/register
+Content-Type: application/json
+
+{
+  "birthNumber": "12223333333",
+  "firstName": "d",
+  "lastName": "d",
+  "email": "ddd@gmail.com",
+  "password": ".",
+  "insuranceCompanyId": 1,
+  "streetAddress": null,
+  "cityPostalCode": null,
+  "phone": null
+}
+
+

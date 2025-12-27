@@ -1,0 +1,85 @@
+﻿@page "/register"
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Registrácia pacienta</h3>
+
+<div style="max-width:520px">
+    <div>
+        <label>Rodné číslo</label><br />
+        <input @bind="BirthNumber" />
+    </div>
+
+    <div style="margin-top:8px">
+        <label>Meno</label><br />
+        <input @bind="FirstName" />
+    </div>
+
+    <div style="margin-top:8px">
+        <label>Priezvisko</label><br />
+        <input @bind="LastName" />
+    </div>
+
+    <div style="margin-top:8px">
+        <label>Email</label><br />
+        <input @bind="Email" />
+    </div>
+
+    <div style="margin-top:8px">
+        <label>Heslo</label><br />
+        <input type="password" @bind="Password" />
+    </div>
+
+    <div style="margin-top:8px">
+        <label>ID poisťovne</label><br />
+        <input type="number" @bind="InsuranceCompanyId" />
+    </div>
+
+    <div style="margin-top:12px">
+        <button @onclick="DoRegister">Registrovať</button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <p style="color:red">@error</p>
+    }
+</div>
+
+@code {
+    string BirthNumber = "";
+    string FirstName = "";
+    string LastName = "";
+    string Email = "";
+    string Password = "";
+    int InsuranceCompanyId;
+    string? error;
+
+    private async Task DoRegister()
+    {
+        error = null;
+
+        var payload = new
+        {
+            BirthNumber,
+            FirstName,
+            LastName,
+            Email,
+            Password,
+            InsuranceCompanyId,
+            StreetAddress = (string?)null,
+            CityPostalCode = (string?)null,
+            Phone = (string?)null
+        };
+
+        var resp = await Http.PostAsJsonAsync("/api/auth/register", payload);
+
+        if (resp.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        var msg = await resp.Content.ReadAsStringAsync();
+        error = string.IsNullOrWhiteSpace(msg) ? "Registrácia zlyhala." : msg;
+    }
+}
