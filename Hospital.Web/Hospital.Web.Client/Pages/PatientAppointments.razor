@@ -1,0 +1,284 @@
+﻿@page "/patient"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Pacient")]
+@inject HttpClient Http
+
+<div class="container py-4">
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h4 class="mb-3">Moje objednávky</h4>
+
+                    @if (mine is null)
+                    {
+                        <div>Načítavam...</div>
+                    }
+                    else if (mine.Count == 0)
+                    {
+                        <div>Nemáte žiadne objednávky.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Dátum/čas</th>
+                                        <th>Lekár</th>
+                                        <th>Typ</th>
+                                        <th>Stav</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var a in mine)
+                                    {
+                                        <tr>
+                                            <td>@a.StartAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                            <td>@a.Doctor</td>
+                                            <td>@a.Type</td>
+                                            <td>@a.Status</td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm btn-outline-secondary me-2" @onclick="() => LoadDetail(a.Id)">Detail</button>
+                                                <button class="btn btn-sm btn-outline-danger" disabled="@(!a.CanCancel)" @onclick="() => Cancel(a.Id)">Zrušiť</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (detail is not null)
+                    {
+                        <hr />
+                        <h5 class="mb-2">Detail</h5>
+                        <div><strong>Dátum:</strong> @detail.StartAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</div>
+                        <div><strong>Lekár:</strong> @detail.Doctor</div>
+                        <div><strong>Typ:</strong> @detail.Type</div>
+                        <div><strong>Stav:</strong> @detail.Status</div>
+                        <div class="mt-2"><strong>Dôvod:</strong><br />@detail.Reason</div>
+                        @if (!string.IsNullOrWhiteSpace(detail.Notes))
+                        {
+                            <div class="mt-2"><strong>Poznámky:</strong><br />@detail.Notes</div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h4 class="mb-3">Objednať sa</h4>
+
+                    <div class="mb-3">
+                        <label class="form-label">Lekár</label>
+                        <select class="form-select" value="@selectedStaffId" @onchange="OnDoctorChanged">
+                            <option value="0">Vyberte lekára</option>
+                            @if (doctors is not null)
+                            {
+                                @foreach (var d in doctors)
+                                {
+                                    <option value="@d.Id">@d.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Typ vyšetrenia</label>
+                        <select class="form-select" @bind="selectedTypeId">
+                            <option value="0">Vyberte typ</option>
+                            @if (types is not null)
+                            {
+                                @foreach (var t in types)
+                                {
+                                    <option value="@t.Id">@t.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Voľný termín</label>
+                        <select class="form-select" @bind="selectedSlotId">
+                            <option value="0">Vyberte termín</option>
+                            @if (slots is not null)
+                            {
+                                @foreach (var s in slots)
+                                {
+                                    <option value="@s.Id">@s.StartAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Dôvod návštevy</label>
+                        <textarea class="form-control" rows="3" @bind="reason"></textarea>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(formError))
+                    {
+                        <div class="alert alert-danger py-2">@formError</div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(formOk))
+                    {
+                        <div class="alert alert-success py-2">@formOk</div>
+                    }
+
+                    <button class="btn btn-primary w-100" @onclick="CreateAppointment">Potvrdiť</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<MineRow>? mine;
+    private MineDetail? detail;
+
+    private List<DoctorRow>? doctors;
+    private List<TypeRow>? types;
+    private List<SlotRow>? slots;
+
+    private int selectedStaffId;
+    private int selectedTypeId;
+    private int selectedSlotId;
+    private string reason = "";
+
+    private string? formError;
+    private string? formOk;
+
+    protected override async Task OnInitializedAsync()
+    {
+        doctors = await Http.GetFromJsonAsync<List<DoctorRow>>("api/patient/appointments/doctors");
+        types = await Http.GetFromJsonAsync<List<TypeRow>>("api/patient/appointments/types");
+        mine = await Http.GetFromJsonAsync<List<MineRow>>("api/patient/appointments/mine?take=10");
+    }
+
+    private async Task LoadDetail(int id)
+    {
+        detail = await Http.GetFromJsonAsync<MineDetail>($"api/patient/appointments/{id}");
+    }
+
+    private async Task Cancel(int id)
+    {
+        formError = null;
+        formOk = null;
+
+        var resp = await Http.PostAsync($"api/patient/appointments/{id}/cancel", null);
+        if (!resp.IsSuccessStatusCode)
+        {
+            formError = await resp.Content.ReadAsStringAsync();
+            return;
+        }
+
+        mine = await Http.GetFromJsonAsync<List<MineRow>>("api/patient/appointments/mine?take=10");
+        detail = null;
+        formOk = "Objednávka bola zrušená.";
+    }
+
+    private async Task OnDoctorChanged(ChangeEventArgs e)
+    {
+        formError = null;
+        formOk = null;
+
+        selectedSlotId = 0;
+        slots = null;
+
+        selectedStaffId = int.TryParse(e.Value?.ToString(), out var v) ? v : 0;
+
+        if (selectedStaffId <= 0)
+            return;
+
+        slots = await Http.GetFromJsonAsync<List<SlotRow>>($"api/patient/appointments/slots?staffId={selectedStaffId}&take=30");
+    }
+
+    private async Task CreateAppointment()
+    {
+        formError = null;
+        formOk = null;
+
+        if (selectedStaffId <= 0 || selectedTypeId <= 0 || selectedSlotId <= 0)
+        {
+            formError = "Vyberte lekára, typ aj termín.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            formError = "Zadajte dôvod návštevy.";
+            return;
+        }
+
+        var payload = new
+        {
+            StaffId = selectedStaffId,
+            TypeId = selectedTypeId,
+            SlotId = selectedSlotId,
+            Reason = reason
+        };
+
+        var resp = await Http.PostAsJsonAsync("api/patient/appointments", payload);
+
+        if (!resp.IsSuccessStatusCode)
+        {
+            formError = await resp.Content.ReadAsStringAsync();
+            return;
+        }
+
+        mine = await Http.GetFromJsonAsync<List<MineRow>>("api/patient/appointments/mine?take=10");
+        slots = await Http.GetFromJsonAsync<List<SlotRow>>($"api/patient/appointments/slots?staffId={selectedStaffId}&take=30");
+        selectedSlotId = 0;
+        reason = "";
+
+        formOk = "Objednávka bola vytvorená.";
+    }
+
+    public class MineRow
+    {
+        public int Id { get; set; }
+        public DateTime StartAt { get; set; }
+        public string Doctor { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Status { get; set; } = "";
+        public bool CanCancel { get; set; }
+    }
+
+    public class MineDetail
+    {
+        public int Id { get; set; }
+        public DateTime StartAt { get; set; }
+        public DateTime EndAt { get; set; }
+        public string Doctor { get; set; } = "";
+        public string Type { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string Reason { get; set; } = "";
+        public string? Notes { get; set; }
+    }
+
+    public class DoctorRow
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class TypeRow
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class SlotRow
+    {
+        public int Id { get; set; }
+        public DateTime StartAt { get; set; }
+        public DateTime EndAt { get; set; }
+    }
+}

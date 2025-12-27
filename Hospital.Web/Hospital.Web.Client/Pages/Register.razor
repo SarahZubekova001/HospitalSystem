@@ -2,57 +2,68 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 
-<h3>Registrácia pacienta</h3>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="mb-4">Registrácia pacienta</h3>
 
-<div style="max-width:520px">
-    <div>
-        <label>Rodné číslo</label><br />
-        <input @bind="BirthNumber" />
+                    <div class="mb-3">
+                        <label class="form-label">Rodné číslo</label>
+                        <input class="form-control" @bind="BirthNumber" autocomplete="off" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Meno</label>
+                        <input class="form-control" @bind="FirstName" autocomplete="given-name" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Priezvisko</label>
+                        <input class="form-control" @bind="LastName" autocomplete="family-name" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input class="form-control" type="email" @bind="Email" autocomplete="email" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Heslo</label>
+                        <input class="form-control" type="password" @bind="Password" autocomplete="new-password" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">ID poisťovne</label>
+                        <input class="form-control" type="number" @bind="InsuranceCompanyId" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(error))
+                    {
+                        <div class="alert alert-danger py-2 mb-3">@error</div>
+                    }
+
+                    <button class="btn btn-primary w-100" @onclick="DoRegister">Registrovať</button>
+
+                    <div class="text-center mt-3">
+                        <span>Máte už účet? </span>
+                        <NavLink href="login">Prihláste sa</NavLink>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div style="margin-top:8px">
-        <label>Meno</label><br />
-        <input @bind="FirstName" />
-    </div>
-
-    <div style="margin-top:8px">
-        <label>Priezvisko</label><br />
-        <input @bind="LastName" />
-    </div>
-
-    <div style="margin-top:8px">
-        <label>Email</label><br />
-        <input @bind="Email" />
-    </div>
-
-    <div style="margin-top:8px">
-        <label>Heslo</label><br />
-        <input type="password" @bind="Password" />
-    </div>
-
-    <div style="margin-top:8px">
-        <label>ID poisťovne</label><br />
-        <input type="number" @bind="InsuranceCompanyId" />
-    </div>
-
-    <div style="margin-top:12px">
-        <button @onclick="DoRegister">Registrovať</button>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(error))
-    {
-        <p style="color:red">@error</p>
-    }
 </div>
 
 @code {
-    string BirthNumber = "";
-    string FirstName = "";
-    string LastName = "";
-    string Email = "";
-    string Password = "";
-    int InsuranceCompanyId;
-    string? error;
+    private string BirthNumber = "";
+    private string FirstName = "";
+    private string LastName = "";
+    private string Email = "";
+    private string Password = "";
+    private int InsuranceCompanyId;
+    private string? error;
 
     private async Task DoRegister()
     {
@@ -75,7 +86,7 @@
 
         if (resp.IsSuccessStatusCode)
         {
-            Nav.NavigateTo("/login");
+            Nav.NavigateTo("/login", forceLoad: true);
             return;
         }
 

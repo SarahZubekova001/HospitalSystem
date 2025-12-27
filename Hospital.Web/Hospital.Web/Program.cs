@@ -38,8 +38,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 builder.Services.AddAuthorizationCore();
 
-builder.Services.AddScoped<AuthenticationStateProvider, ApiAuthStateProvider>();
 builder.Services.AddScoped<ApiAuthStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<ApiAuthStateProvider>());
+
 
 
 builder.Services.AddReverseProxy()

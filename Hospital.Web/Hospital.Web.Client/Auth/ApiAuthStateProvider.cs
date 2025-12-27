@@ -1,45 +1,66 @@
 ﻿using System.Net.Http.Json;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
-namespace Hospital.Web.Client.Auth;
 
+namespace Hospital.Web.Client.Auth;
 
 public class ApiAuthStateProvider : AuthenticationStateProvider
 {
     private readonly HttpClient _http;
-    private static readonly ClaimsPrincipal Anonymous = new(new ClaimsIdentity());
+    private Task<AuthenticationState>? _stateTask;
 
-    public ApiAuthStateProvider(HttpClient http) => _http = http;
+    public ApiAuthStateProvider(HttpClient http)
+    {
+        _http = http;
+    }
 
-    public override async Task<AuthenticationState> GetAuthenticationStateAsync()
+    public override Task<AuthenticationState> GetAuthenticationStateAsync()
+        => _stateTask ??= FetchAsync();
+
+    public void Refresh()
+    {
+        _stateTask = FetchAsync();
+        NotifyAuthenticationStateChanged(_stateTask);
+    }
+
+    private async Task<AuthenticationState> FetchAsync()
     {
         try
         {
-            var me = await _http.GetFromJsonAsync<MeResponse>("api/auth/me");
-            if (me is null || !me.isAuthenticated)
-                return new AuthenticationState(Anonymous);
+            var me = await _http.GetFromJsonAsync<MeResponse>("/api/auth/me");
 
-            var claims = new List<Claim>
+            if (me != null && me.isAuthenticated && !string.IsNullOrWhiteSpace(me.email))
             {
-                new(ClaimTypes.Name, me.email ?? "")
-            };
+                var claims = new List<Claim>
+                {
+                    new(ClaimTypes.Name, me.email)
+                };
 
-            if (!string.IsNullOrWhiteSpace(me.fullName))
-                claims.Add(new("fullName", me.fullName));
+                if (!string.IsNullOrWhiteSpace(me.fullName))
+                    claims.Add(new Claim("fullName", me.fullName));
 
-            if (me.roles is not null)
-                claims.AddRange(me.roles.Select(r => new Claim(ClaimTypes.Role, r)));
+                if (me.roles != null)
+                {
+                    foreach (var r in me.roles)
+                        claims.Add(new Claim(ClaimTypes.Role, r));
+                }
 
-            var identity = new ClaimsIdentity(claims, "Cookies");
-            return new AuthenticationState(new ClaimsPrincipal(identity));
+                var identity = new ClaimsIdentity(claims, "Cookies");
+                return new AuthenticationState(new ClaimsPrincipal(identity));
+            }
         }
         catch
         {
-            return new AuthenticationState(Anonymous);
         }
+
+        return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
     }
 
-    public void Refresh() => NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
-
-    public record MeResponse(bool isAuthenticated, string? email, string[]? roles, string? fullName);
+    private sealed class MeResponse
+    {
+        public bool isAuthenticated { get; set; }
+        public string? email { get; set; }
+        public string[]? roles { get; set; }
+        public string? fullName { get; set; }
+    }
 }

@@ -66,3 +66,64 @@ h1:focus {
 .app-main {
     padding-top: 1rem;
 }
+.topbar {
+    background: linear-gradient(90deg, #071a52 0%, #4c0b5f 55%, #0a2a6b 100%);
+    padding: 14px 18px;
+}
+
+.topbar-inner {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.topbar-brand {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 22px;
+    white-space: nowrap;
+}
+
+.topbar-links {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.topbar-user {
+    color: #fff;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+    padding: 0 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.55);
+    color: #fff;
+    text-decoration: none;
+    background: rgba(255,255,255,0.08);
+}
+
+    .topbar-btn:hover {
+        background: rgba(255,255,255,0.16);
+        color: #fff;
+    }
+
+a.topbar-btn.active {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.85);
+    font-weight: 700;
+}

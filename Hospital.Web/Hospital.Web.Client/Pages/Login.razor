@@ -1,50 +1,59 @@
 ﻿@page "/login"
-@using Hospital.Web.Client.Auth
-@using Microsoft.AspNetCore.Components
+@using System.Net.Http.Json
 @using System.Web
+@using Microsoft.AspNetCore.Components.Authorization
+@using Hospital.Web.Client.Auth
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ApiAuthStateProvider AuthState
+@inject AuthenticationStateProvider AspAuth
 
+<div class="auth-page">
+    <div class="auth-card">
+        <h2 class="mb-4">Prihlásenie</h2>
 
-<h3>Prihlásenie</h3>
+        <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input class="form-control" @bind="email" />
+        </div>
 
-<div style="max-width:420px">
-    <div>
-        <label>Email</label><br />
-        <input @bind="email" />
+        <div class="mb-3">
+            <label class="form-label">Heslo</label>
+            <input class="form-control" type="password" @bind="password" />
+        </div>
+
+        <button class="btn btn-primary w-100" @onclick="DoLogin">Prihlásiť</button>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="text-danger mt-3">@error</div>
+        }
+
+        <div class="text-center mt-3">
+            Nemáte účet?
+            <a href="/register">Registrujte sa</a>
+        </div>
     </div>
-
-    <div style="margin-top:8px">
-        <label>Heslo</label><br />
-        <input type="password" @bind="password" />
-    </div>
-
-    <div style="margin-top:12px">
-        <button @onclick="DoLogin">Prihlásiť</button>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(error))
-    {
-        <p style="color:red">@error</p>
-    }
 </div>
 
 @code {
     private string email = "";
     private string password = "";
     private string? error;
-
     private string returnUrl = "/";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
         var query = HttpUtility.ParseQueryString(uri.Query);
         var url = query["returnUrl"];
         if (!string.IsNullOrWhiteSpace(url))
-        {
             returnUrl = url!;
+
+        var state = await AspAuth.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated ?? false)
+        {
+            Nav.NavigateTo(returnUrl, true);
         }
     }
 
@@ -58,8 +67,7 @@
         if (resp.IsSuccessStatusCode)
         {
             AuthState.Refresh();
-
-            Nav.NavigateTo(returnUrl, forceLoad: true);
+            Nav.NavigateTo(returnUrl, true);
             return;
         }
 

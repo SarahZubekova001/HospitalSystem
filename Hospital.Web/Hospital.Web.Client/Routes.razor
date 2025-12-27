@@ -1,24 +1,21 @@
-﻿ @* <Router AppAssembly="typeof(Program).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
-    </Found>
-</Router> *@
- 
-
- @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components
+﻿@using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
-
+@inject NavigationManager Nav
 
 <CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(Program).Assembly">
+    <Router AppAssembly="@typeof(Hospital.Web.Client.Routes).Assembly">
         <Found Context="routeData">
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
-                <NotAuthorized>
-                    <NavigateTo Path="/login" Replace="true" />
-                </NotAuthorized>
+                <Authorizing>
+                    <div class="container py-4">Načítavam...</div>
+                </Authorizing>
 
+                <NotAuthorized Context="authState">
+                    @if (!(authState.User.Identity?.IsAuthenticated ?? false))
+                    {
+                        @MarkRedirect()
+                    }
+                </NotAuthorized>
             </AuthorizeRouteView>
         </Found>
 
@@ -30,3 +27,31 @@
     </Router>
 </CascadingAuthenticationState>
 
+@code {
+    private bool _redirecting;
+    private bool _shouldRedirect;
+    private string _redirectUrl = "/login";
+
+    private RenderFragment MarkRedirect() => builder =>
+    {
+        if (_redirecting) return;
+
+        var path = "/" + Nav.ToBaseRelativePath(Nav.Uri);
+        if (path.StartsWith("/login") || path.StartsWith("/register"))
+            return;
+
+        _shouldRedirect = true;
+        _redirectUrl = "/login?returnUrl=/" + Uri.EscapeDataString(Nav.ToBaseRelativePath(Nav.Uri));
+    };
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldRedirect && !_redirecting)
+        {
+            _redirecting = true;
+            Nav.NavigateTo(_redirectUrl, true);
+        }
+
+        return Task.CompletedTask;
+    }
+}
