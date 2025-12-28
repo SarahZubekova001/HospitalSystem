@@ -8,30 +8,37 @@
 @inject ApiAuthStateProvider AuthState
 @inject AuthenticationStateProvider AspAuth
 
-<div class="auth-page">
-    <div class="auth-card">
-        <h2 class="mb-4">Prihlásenie</h2>
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+        
+                <h2 class="mb-4">Prihlásenie</h2>
 
-        <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input class="form-control" @bind="email" />
-        </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input class="form-control" @bind="email" />
+                </div>
 
-        <div class="mb-3">
-            <label class="form-label">Heslo</label>
-            <input class="form-control" type="password" @bind="password" />
-        </div>
+                <div class="mb-3">
+                    <label class="form-label">Heslo</label>
+                    <input class="form-control" type="password" @bind="password" />
+                </div>
 
-        <button class="btn btn-primary w-100" @onclick="DoLogin">Prihlásiť</button>
+                <button class="btn btn-primary w-100" @onclick="DoLogin">Prihlásiť</button>
 
-        @if (!string.IsNullOrWhiteSpace(error))
-        {
-            <div class="text-danger mt-3">@error</div>
-        }
+                @if (!string.IsNullOrWhiteSpace(error))
+                {
+                    <div class="text-danger mt-3">@error</div>
+                }
 
-        <div class="text-center mt-3">
-            Nemáte účet?
-            <a href="/register">Registrujte sa</a>
+                <div class="text-center mt-3">
+                    Nemáte účet?
+                    <a href="/register">Registrujte sa</a>
+                </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

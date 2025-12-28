@@ -1,0 +1,349 @@
+﻿@page "/profile"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@attribute [Authorize]
+@inject HttpClient Http
+
+<h3>Môj profil</h3>
+
+@if (Loading)
+{
+    <div>Načítavam...</div>
+}
+else if (!string.IsNullOrWhiteSpace(Error))
+{
+    <div class="alert alert-danger">@Error</div>
+}
+else if (Model == null)
+{
+    <div>Profil sa nenašiel.</div>
+}
+else
+{
+    <div class="card" style="max-width: 980px;">
+        <div class="card-body">
+
+            <div class="row g-3 mb-2">
+                <div class="col-md-4">
+                    <label class="form-label">Prihlasovací email</label>
+                    <input class="form-control" @bind="Edit.loginEmail" />
+                </div>
+                <div class="col-md-4">
+                    <div class="text-muted small">Rola</div>
+                    <div class="fw-semibold" style="padding-top: 10px;">@Model.user.role</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Rodné číslo</label>
+                    <input class="form-control" @bind="Edit.birthNumber" />
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Meno</label>
+                    <input class="form-control" @bind="Edit.firstName" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Priezvisko</label>
+                    <input class="form-control" @bind="Edit.lastName" />
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Ulica a číslo</label>
+                    <input class="form-control" @bind="Edit.streetAddress" />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">PSČ</label>
+                    <input class="form-control" @bind="Edit.cityPostalCode" />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Telefón</label>
+                    <input class="form-control" @bind="Edit.phone" />
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Kontaktný email</label>
+                    <input class="form-control" @bind="Edit.contactEmail" />
+                </div>
+            </div>
+
+            @if (Model.user.role == "Pacient" && Model.patient != null)
+            {
+                <hr />
+                <h5>Pacient</h5>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="text-muted small">Poisťovňa</div>
+                        <div class="fw-semibold">@((string.IsNullOrWhiteSpace(Model.patient.insuranceCompanyName)) ? "—" : Model.patient.insuranceCompanyName)</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Primárny lekár</label>
+                        <InputSelect class="form-select" TValue="int?" @bind-Value="Edit.primaryDoctorId">
+                            <option value="">—</option>
+                            @foreach (var d in Model.doctors)
+                            {
+                                <option value="@d.id">@d.fullName</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Krvná skupina</label>
+                        <input class="form-control" @bind="Edit.bloodType" />
+                    </div>
+                </div>
+            }
+
+            @if (Model.user.role == "Lekár" && Model.staff != null)
+            {
+                <hr />
+                <h5>Lekár</h5>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Špecializácia</label>
+                        <InputSelect class="form-select" TValue="int?" @bind-Value="Edit.specializationId">
+                            <option value="">—</option>
+                            @foreach (var sp in Model.specializations)
+                            {
+                                <option value="@sp.id">@sp.name</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Licenčné číslo</label>
+                        <input class="form-control" @bind="Edit.licenseNumber" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Pracovný telefón</label>
+                        <input class="form-control" @bind="Edit.workPhone" />
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex gap-2 mt-4">
+                <button class="btn btn-primary" @onclick="Save" disabled="@Saving">Uložiť</button>
+                <button class="btn btn-outline-secondary" @onclick="Reset" disabled="@Saving">Vrátiť zmeny</button>
+
+                @if (!string.IsNullOrWhiteSpace(Success))
+                {
+                    <span class="text-success align-self-center">@Success</span>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool Loading;
+    private bool Saving;
+    private string? Error;
+    private string? Success;
+
+    private ProfileResponse? Model;
+    private EditModel Edit = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Loading = true;
+        Error = null;
+        Success = null;
+
+        try
+        {
+            Model = await Http.GetFromJsonAsync<ProfileResponse>("api/profile");
+            if (Model != null)
+            {
+                Edit = new EditModel
+                {
+                    loginEmail = Model.user.loginEmail,
+                    birthNumber = Model.user.birthNumber,
+                    firstName = Model.user.firstName,
+                    lastName = Model.user.lastName,
+                    streetAddress = Model.user.streetAddress,
+                    cityPostalCode = Model.user.cityPostalCode,
+                    phone = Model.user.phone,
+                    contactEmail = Model.user.contactEmail,
+
+                    bloodType = Model.patient?.bloodType,
+                    primaryDoctorId = Model.patient?.primaryDoctorId,
+
+                    workPhone = Model.staff?.workPhone,
+                    licenseNumber = Model.staff?.licenseNumber,
+                    specializationId = Model.staff?.specializationId
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (Model == null) return;
+
+        Saving = true;
+        Error = null;
+        Success = null;
+
+        var req = new UpdateProfileRequest(
+            Edit.loginEmail,
+            Edit.birthNumber == Model.user.birthNumber ? null : Edit.birthNumber,
+            Edit.firstName,
+            Edit.lastName,
+            Edit.streetAddress,
+            Edit.cityPostalCode,
+            Edit.phone,
+            Edit.contactEmail,
+            Edit.bloodType,
+            Edit.primaryDoctorId,
+            Edit.workPhone,
+            Edit.licenseNumber,
+            Edit.specializationId
+        );
+
+        var resp = await Http.PutAsJsonAsync("api/profile", req);
+        if (!resp.IsSuccessStatusCode)
+        {
+            Error = await resp.Content.ReadAsStringAsync();
+            Saving = false;
+            return;
+        }
+
+        Success = "Uložené";
+        await Load();
+        Saving = false;
+    }
+
+    private void Reset()
+    {
+        if (Model == null) return;
+
+        Error = null;
+        Success = null;
+
+        Edit = new EditModel
+        {
+            loginEmail = Model.user.loginEmail,
+            birthNumber = Model.user.birthNumber,
+            firstName = Model.user.firstName,
+            lastName = Model.user.lastName,
+            streetAddress = Model.user.streetAddress,
+            cityPostalCode = Model.user.cityPostalCode,
+            phone = Model.user.phone,
+            contactEmail = Model.user.contactEmail,
+
+            bloodType = Model.patient?.bloodType,
+            primaryDoctorId = Model.patient?.primaryDoctorId,
+
+            workPhone = Model.staff?.workPhone,
+            licenseNumber = Model.staff?.licenseNumber,
+            specializationId = Model.staff?.specializationId
+        };
+    }
+
+    private sealed class ProfileResponse
+    {
+        public UserDto user { get; set; } = new();
+        public PatientDto? patient { get; set; }
+        public StaffDto? staff { get; set; }
+        public List<DoctorDto> doctors { get; set; } = new();
+        public List<SpecializationDto> specializations { get; set; } = new();
+    }
+
+    private sealed class UserDto
+    {
+        public int id { get; set; }
+        public string loginEmail { get; set; } = "";
+        public string role { get; set; } = "";
+        public string birthNumber { get; set; } = "";
+        public string firstName { get; set; } = "";
+        public string lastName { get; set; } = "";
+        public string? streetAddress { get; set; }
+        public string? cityPostalCode { get; set; }
+        public string? phone { get; set; }
+        public string? contactEmail { get; set; }
+    }
+
+    private sealed class PatientDto
+    {
+        public string? bloodType { get; set; }
+        public int? primaryDoctorId { get; set; }
+        public int insuranceCompanyId { get; set; }
+        public string? insuranceCompanyName { get; set; }
+        public string? primaryDoctorName { get; set; }
+    }
+
+    private sealed class StaffDto
+    {
+        public int? specializationId { get; set; }
+        public string? specializationName { get; set; }
+        public string licenseNumber { get; set; } = "";
+        public string? workPhone { get; set; }
+    }
+
+    private sealed class DoctorDto
+    {
+        public int id { get; set; }
+        public string fullName { get; set; } = "";
+    }
+
+    private sealed class SpecializationDto
+    {
+        public int id { get; set; }
+        public string name { get; set; } = "";
+    }
+
+    private sealed class EditModel
+    {
+        public string? loginEmail { get; set; }
+        public string? birthNumber { get; set; }
+        public string? firstName { get; set; }
+        public string? lastName { get; set; }
+        public string? streetAddress { get; set; }
+        public string? cityPostalCode { get; set; }
+        public string? phone { get; set; }
+        public string? contactEmail { get; set; }
+
+        public string? bloodType { get; set; }
+        public int? primaryDoctorId { get; set; }
+
+        public string? workPhone { get; set; }
+        public string? licenseNumber { get; set; }
+        public int? specializationId { get; set; }
+    }
+
+    private sealed record UpdateProfileRequest(
+        string? LoginEmail,
+        string? BirthNumber,
+        string? FirstName,
+        string? LastName,
+        string? StreetAddress,
+        string? CityPostalCode,
+        string? Phone,
+        string? ContactEmail,
+        string? BloodType,
+        int? PrimaryDoctorId,
+        string? WorkPhone,
+        string? LicenseNumber,
+        int? SpecializationId
+    );
+}
