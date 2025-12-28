@@ -37,7 +37,7 @@
             </li>
         </AuthorizeView>
         <AuthorizeView Roles="Lekár">
-            <li class="nav-item">
+           @*  <li class="nav-item">
                 <NavLink class="topbar-btn" href="doctor/appointments" Match="NavLinkMatch.All">
                     Moje objednávky
                 </NavLink>
@@ -45,7 +45,12 @@
                 <NavLink class="topbar-btn" href="doctor/slots">
                     Moje termíny
                 </NavLink>
-            </li>
+            </li> *@
+            <div class="topbar-links">
+                <NavLink class="topbar-btn" href="doctor/patients" Match="NavLinkMatch.Prefix">Moji pacienti</NavLink>
+                <NavLink class="topbar-btn" href="doctor/appointments" Match="NavLinkMatch.Prefix">Moje objednávky</NavLink>
+                <NavLink class="topbar-btn" href="doctor/slots" Match="NavLinkMatch.Prefix">Moje termíny</NavLink>
+            </div>
         </AuthorizeView>
        
 

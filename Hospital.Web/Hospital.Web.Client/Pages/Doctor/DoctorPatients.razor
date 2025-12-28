@@ -1,0 +1,130 @@
+﻿@page "/doctor/patients"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Lekár")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Moji pacienti</h3>
+
+<div class="d-flex gap-2 align-items-center mb-3" style="max-width: 720px;">
+    <input class="form-control" placeholder="Hľadať meno / rodné číslo / email"
+           @bind="Query" @bind:event="oninput" />
+    <button class="btn btn-primary" @onclick="Load">Hľadať</button>
+</div>
+
+@if (Loading)
+{
+    <div>Načítavam...</div>
+}
+else if (!string.IsNullOrWhiteSpace(Error))
+{
+    <div class="alert alert-danger">@Error</div>
+}
+else if (Items.Count == 0)
+{
+    <div>Žiadni pacienti.</div>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Pacient</th>
+                <th>Rodné číslo</th>
+                <th>Kontakt</th>
+                <th>Vzťah</th>
+                <th class="text-end"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Items)
+            {
+                <tr>
+                    <td class="fw-semibold">@p.fullName</td>
+                    <td>@p.birthNumber</td>
+                    <td>
+                        <div class="d-flex flex-column">
+                            <span>@p.phone</span>
+                            <span class="text-muted">@p.email</span>
+                        </div>
+                    </td>
+                    <td>
+                        @if (p.isPrimary)
+                        {
+                            <span class="badge text-bg-success me-1">Primárny</span>
+                        }
+                        @if (p.hasAppointment)
+                        {
+                            <span class="badge text-bg-secondary">Objednaný</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button class="btn btn-outline-primary btn-sm" @onclick="() => OpenMedicalRecord(p.patientId)">
+                                Záznamy
+                            </button>
+                            
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool Loading;
+    private string? Error;
+    private string Query = "";
+    private List<Row> Items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Loading = true;
+        Error = null;
+
+        try
+        {
+            var url = string.IsNullOrWhiteSpace(Query)
+                ? "api/doctor/patients"
+                : $"api/doctor/patients?q={Uri.EscapeDataString(Query)}";
+
+            Items = await Http.GetFromJsonAsync<List<Row>>(url) ?? new();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private void OpenMedicalRecord(int patientId)
+    {
+        Nav.NavigateTo($"/doctor/patients/{patientId}/records");
+    }
+
+    private void OpenPrescriptions(int patientId)
+    {
+        Nav.NavigateTo($"/doctor/patients/{patientId}/prescriptions");
+    }
+
+    private sealed class Row
+    {
+        public int patientId { get; set; }
+        public string birthNumber { get; set; } = "";
+        public string fullName { get; set; } = "";  
+        public string? phone { get; set; }
+        public string? email { get; set; }
+        public bool isPrimary { get; set; }
+        public bool hasAppointment { get; set; }
+    }
+}

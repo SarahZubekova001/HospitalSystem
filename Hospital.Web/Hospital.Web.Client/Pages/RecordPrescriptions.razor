@@ -1,0 +1,282 @@
+﻿@page "/doctor/records/{MedicalRecordId:int}/prescriptions"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Lekár")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Predpisy</h3>
+
+<div class="d-flex gap-2 mb-3">
+    <button class="btn btn-outline-secondary" @onclick="Back">← Späť</button>
+    <button class="btn btn-primary" @onclick="OpenCreate">+ Predpísať liek</button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Error))
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+@if (Loading)
+{
+    <div>Načítavam...</div>
+}
+else if (Items.Count == 0)
+{
+    <div>Žiadne predpisy.</div>
+}
+else
+{
+    <table class="table table-striped align-middle" style="max-width: 1100px;">
+        <thead>
+            <tr>
+                <th>Liek</th>
+                <th>Dávkovanie</th>
+                <th>Množstvo</th>
+                <th>Platné do</th>
+                <th class="text-end"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Items)
+            {
+                <tr>
+                    <td class="fw-semibold">@p.medicationName</td>
+                    <td>@p.dosage</td>
+                    <td>@p.quantity</td>
+                    <td>@(p.validUntil == null ? "—" : p.validUntil.Value.ToString("dd.MM.yyyy"))</td>
+                    <td class="text-end">
+                        <button class="btn btn-outline-danger btn-sm" @onclick="() => Delete(p.id)">Zmazať</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (ShowModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Predpísať liek</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Hľadať liek</label>
+                            <input class="form-control" placeholder="napr. Paralen"
+                                   @bind="MedQuery" @bind:event="oninput" />
+                            @if (MedResults.Count > 0)
+                            {
+                                <div class="list-group mt-2" style="max-height: 240px; overflow:auto;">
+                                    @foreach (var m in MedResults)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action"
+                                                @onclick="() => SelectMedication(m)">
+                                            <div class="fw-semibold">@m.name</div>
+                                            <div class="text-muted small">@m.activeSubstance</div>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Vybraný liek</label>
+                            <input class="form-control" value="@SelectedMedicationText" disabled />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Dávkovanie</label>
+                            <input class="form-control" @bind="EditDosage" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Množstvo</label>
+                            <input class="form-control" type="number" min="1" @bind="EditQuantity" />
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Platné do</label>
+                            <input class="form-control" type="date" @bind="EditValidUntilDate" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CloseModal">Zrušiť</button>
+                    <button class="btn btn-primary" @onclick="SaveModal" disabled="@Saving">Uložiť</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int MedicalRecordId { get; set; }
+
+    private bool Loading;
+    private bool Saving;
+    private string? Error;
+
+    private List<Row> Items = new();
+
+    private bool ShowModal;
+
+    private string MedQuery = "";
+    private List<MedRow> MedResults = new();
+    private int? SelectedMedicationId;
+    private string SelectedMedicationText = "—";
+
+    private string? EditDosage;
+    private int EditQuantity = 1;
+    private DateTime? EditValidUntilDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Loading = true;
+        Error = null;
+
+        try
+        {
+            Items = await Http.GetFromJsonAsync<List<Row>>($"api/doctor/prescriptions/record/{MedicalRecordId}") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+
+        Loading = false;
+    }
+
+    private void Back() => Nav.NavigateTo("/doctor/patients");
+
+    private void OpenCreate()
+    {
+        Error = null;
+        MedQuery = "";
+        MedResults.Clear();
+        SelectedMedicationId = null;
+        SelectedMedicationText = "—";
+        EditDosage = null;
+        EditQuantity = 1;
+        EditValidUntilDate = null;
+        ShowModal = true;
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+        Error = null;
+    }
+
+    private async Task OnMedQueryChanged(ChangeEventArgs _)
+    {
+        await SearchMedications();
+    }
+
+    private async Task SearchMedications()
+    {
+        var q = MedQuery?.Trim();
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+        {
+            MedResults.Clear();
+            return;
+        }
+
+        MedResults = await Http.GetFromJsonAsync<List<MedRow>>(
+            $"api/doctor/prescriptions/medications?q={Uri.EscapeDataString(q)}") ?? new();
+    }
+
+    private void SelectMedication(MedRow m)
+    {
+        SelectedMedicationId = m.id;
+        SelectedMedicationText = $"{m.name} ({m.activeSubstance})";
+        MedResults.Clear();
+    }
+
+    private async Task SaveModal()
+    {
+        Saving = true;
+        Error = null;
+
+        try
+        {
+            if (SelectedMedicationId == null)
+            {
+                Error = "Vyber liek.";
+                return;
+            }
+
+            if (EditQuantity <= 0)
+            {
+                Error = "Množstvo musí byť > 0.";
+                return;
+            }
+
+            var resp = await Http.PostAsJsonAsync(
+                "api/doctor/prescriptions",
+                new
+                {
+                    medicalRecordId = MedicalRecordId,
+                    medicationId = SelectedMedicationId.Value,
+                    dosage = EditDosage,
+                    quantity = EditQuantity,
+                    validUntil = EditValidUntilDate
+                });
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                Error = await resp.Content.ReadAsStringAsync();
+                return;
+            }
+
+            ShowModal = false;
+            await Load();
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        Error = null;
+
+        var resp = await Http.DeleteAsync($"api/doctor/prescriptions/{id}");
+        if (!resp.IsSuccessStatusCode)
+        {
+            Error = await resp.Content.ReadAsStringAsync();
+            return;
+        }
+
+        await Load();
+    }
+
+    private sealed class Row
+    {
+        public int id { get; set; }
+        public int medicationId { get; set; }
+        public string medicationName { get; set; } = "";
+        public string? dosage { get; set; }
+        public int quantity { get; set; }
+        public DateOnly? validUntil { get; set; }
+    }
+
+    private sealed class MedRow
+    {
+        public int id { get; set; }
+        public string name { get; set; } = "";
+        public string activeSubstance { get; set; } = "";
+    }
+}

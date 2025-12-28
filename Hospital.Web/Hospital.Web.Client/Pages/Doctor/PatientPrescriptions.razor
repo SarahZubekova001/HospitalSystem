@@ -1,0 +1,238 @@
+﻿@page "/doctor/patients/{PatientId:int}/prescriptions"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Lekár")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Recepty pacienta</h3>
+
+<div class="d-flex gap-2 mb-3">
+    <button class="btn btn-outline-secondary" @onclick="Back">← Späť</button>
+    <button class="btn btn-primary" @onclick="OpenCreate">+ Nový recept</button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Error))
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+@if (Loading)
+{
+    <div>Načítavam...</div>
+}
+else if (Items.Count == 0)
+{
+    <div>Žiadne recepty.</div>
+}
+else
+{
+    <table class="table table-striped align-middle" style="max-width: 1100px;">
+        <thead>
+            <tr>
+                <th>Liek</th>
+                <th>Dávkovanie</th>
+                <th>Inštrukcie</th>
+                <th>Vystavené</th>
+                <th>Platné do</th>
+                <th class="text-end"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Items)
+            {
+                <tr>
+                    <td class="fw-semibold">@p.medicationName</td>
+                    <td>@p.dosage</td>
+                    <td>@p.instructions</td>
+                    <td class="text-muted">@p.issuedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                    <td class="text-muted">@((p.validUntilUtc == null) ? "—" : p.validUntilUtc.Value.ToLocalTime().ToString("dd.MM.yyyy"))</td>
+                    <td class="text-end">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button class="btn btn-outline-primary btn-sm" @onclick="() => OpenEdit(p)">Upraviť</button>
+                            <button class="btn btn-outline-danger btn-sm" @onclick="() => Delete(p.id)">Zmazať</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (ShowModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@((EditingId == null) ? "Nový recept" : "Upraviť recept")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Liek</label>
+                            <input class="form-control" @bind="EditMedication" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Dávkovanie</label>
+                            <input class="form-control" @bind="EditDosage" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Inštrukcie</label>
+                            <textarea class="form-control" rows="4" @bind="EditInstructions"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Platné do</label>
+                            <input class="form-control" type="date" @bind-value="EditValidUntilDate" @bind-value:event="oninput" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CloseModal">Zrušiť</button>
+                    <button class="btn btn-primary" @onclick="SaveModal" disabled="@Saving">Uložiť</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int PatientId { get; set; }
+
+    private bool Loading;
+    private bool Saving;
+    private string? Error;
+
+    private List<Row> Items = new();
+
+    private bool ShowModal;
+    private int? EditingId;
+
+    private string EditMedication = "";
+    private string? EditDosage;
+    private string? EditInstructions;
+    private DateTime? EditValidUntilDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Loading = true;
+        Error = null;
+        try
+        {
+            Items = await Http.GetFromJsonAsync<List<Row>>($"api/doctor/patients/{PatientId}/prescriptions") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private void Back() => Nav.NavigateTo("/doctor/patients");
+
+    private void OpenCreate()
+    {
+        EditingId = null;
+        EditMedication = "";
+        EditDosage = null;
+        EditInstructions = null;
+        EditValidUntilDate = null;
+        ShowModal = true;
+    }
+
+    private void OpenEdit(Row r)
+    {
+        EditingId = r.id;
+        EditMedication = r.medicationName ?? "";
+        EditDosage = r.dosage;
+        EditInstructions = r.instructions;
+        EditValidUntilDate = r.validUntilUtc?.ToLocalTime();
+        ShowModal = true;
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+        Error = null;
+    }
+
+    private async Task SaveModal()
+    {
+        Saving = true;
+        Error = null;
+
+        DateTime? validUntilUtc = null;
+        if (EditValidUntilDate.HasValue)
+        {
+            var local = DateTime.SpecifyKind(EditValidUntilDate.Value.Date, DateTimeKind.Local);
+            validUntilUtc = local.ToUniversalTime();
+        }
+
+        try
+        {
+            if (EditingId == null)
+            {
+                var resp = await Http.PostAsJsonAsync(
+                    $"api/doctor/patients/{PatientId}/prescriptions",
+                    new { medicationName = EditMedication, dosage = EditDosage, instructions = EditInstructions, validUntilUtc });
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Error = await resp.Content.ReadAsStringAsync();
+                    return;
+                }
+            }
+            else
+            {
+                var resp = await Http.PutAsJsonAsync(
+                    $"api/doctor/patients/{PatientId}/prescriptions/{EditingId}",
+                    new { medicationName = EditMedication, dosage = EditDosage, instructions = EditInstructions, validUntilUtc });
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Error = await resp.Content.ReadAsStringAsync();
+                    return;
+                }
+            }
+
+            ShowModal = false;
+            await Load();
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        Error = null;
+        var resp = await Http.DeleteAsync($"api/doctor/patients/{PatientId}/prescriptions/{id}");
+        if (!resp.IsSuccessStatusCode)
+        {
+            Error = await resp.Content.ReadAsStringAsync();
+            return;
+        }
+        await Load();
+    }
+
+    private sealed class Row
+    {
+        public int id { get; set; }
+        public DateTime issuedAtUtc { get; set; }
+        public int issuedByStaffId { get; set; }
+        public string? medicationName { get; set; }
+        public string? dosage { get; set; }
+        public string? instructions { get; set; }
+        public DateTime? validUntilUtc { get; set; }
+    }
+}

@@ -1,0 +1,264 @@
+﻿@page "/doctor/patients/{PatientId:int}/records"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Lekár")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Záznamy pacienta</h3>
+
+<div class="d-flex gap-2 mb-3">
+    <button class="btn btn-outline-secondary" @onclick="Back">← Späť</button>
+    <button class="btn btn-primary" @onclick="OpenCreate">+ Nový záznam</button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Error))
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+@if (Loading)
+{
+    <div>Načítavam...</div>
+}
+else if (Items.Count == 0)
+{
+    <div>Žiadne záznamy.</div>
+}
+else
+{
+    <div class="list-group" style="max-width: 980px;">
+        @foreach (var r in Items)
+        {
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <div class="fw-semibold">Záznam: @r.recordNumber</div>
+                        <div class="text-muted small">
+                            Objednávka: @r.appointmentId |
+                            @r.appointmentStartTime.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary btn-sm" @onclick="() => OpenEdit(r)">Upraviť</button>
+                        <button class="btn btn-outline-danger btn-sm" @onclick="() => Delete(r.id)">Zmazať</button>
+                        <button class="btn btn-outline-success btn-sm"
+                                @onclick="() => OpenPrescriptions(r.id)">
+                            Predpisy
+                        </button>
+
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(r.results))
+                {
+                    <div class="mt-2" style="white-space: pre-wrap;">@r.results</div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@if (ShowModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@((EditingId == null) ? "Nový záznam" : "Upraviť záznam")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    @if (EditingId == null)
+                    {
+                        <div class="mb-2">
+                            <label class="form-label">Objednávka</label>
+                            <select class="form-select" @bind="EditAppointmentId">
+                                <option value="0">-- vyber objednávku --</option>
+                                @foreach (var a in EligibleAppointments)
+                                {
+                                    <option value="@a.id">@a.startTime.ToLocalTime().ToString("dd.MM.yyyy HH:mm") (ID: @a.id)</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    <div class="mb-2">
+                        <label class="form-label">Record number</label>
+                        <input class="form-control" @bind="EditRecordNumber" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Results</label>
+                        <textarea class="form-control" rows="8" @bind="EditResults"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CloseModal">Zrušiť</button>
+                    <button class="btn btn-primary" @onclick="Save" disabled="@Saving">Uložiť</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int PatientId { get; set; }
+
+    private bool Loading;
+    private bool Saving;
+    private string? Error;
+
+    private List<Row> Items = new();
+
+    private bool ShowModal;
+    private int? EditingId;
+
+    private int EditAppointmentId;
+    private string EditRecordNumber = "";
+    private string? EditResults;
+
+    private List<AppointmentRow> EligibleAppointments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Loading = true;
+        Error = null;
+
+        try
+        {
+            Items = await Http.GetFromJsonAsync<List<Row>>($"api/doctor/patients/{PatientId}/records") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+
+        Loading = false;
+    }
+
+    private async Task LoadEligibleAppointments()
+    {
+        EligibleAppointments = await Http.GetFromJsonAsync<List<AppointmentRow>>(
+            $"api/doctor/patients/{PatientId}/records/eligible-appointments") ?? new();
+    }
+
+    private void Back() => Nav.NavigateTo("/doctor/patients");
+
+    private async Task OpenCreate()
+    {
+        EditingId = null;
+        EditAppointmentId = 0;
+        EditRecordNumber = "";
+        EditResults = null;
+        Error = null;
+
+        await LoadEligibleAppointments();
+        ShowModal = true;
+    }
+
+    private void OpenEdit(Row r)
+    {
+        EditingId = r.id;
+        EditAppointmentId = r.appointmentId;
+        EditRecordNumber = r.recordNumber ?? "";
+        EditResults = r.results;
+        Error = null;
+
+        ShowModal = true;
+    }
+
+    private void CloseModal()
+    {
+        ShowModal = false;
+        Error = null;
+    }
+
+    private async Task Save()
+    {
+        Saving = true;
+        Error = null;
+
+        try
+        {
+            if (EditingId == null)
+            {
+                if (EditAppointmentId == 0)
+                {
+                    Error = "Vyber objednávku.";
+                    return;
+                }
+
+                var resp = await Http.PostAsJsonAsync(
+                    $"api/doctor/patients/{PatientId}/records",
+                    new { appointmentId = EditAppointmentId, recordNumber = EditRecordNumber, results = EditResults });
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Error = await resp.Content.ReadAsStringAsync();
+                    return;
+                }
+            }
+            else
+            {
+                var resp = await Http.PutAsJsonAsync(
+                    $"api/doctor/patients/{PatientId}/records/{EditingId}",
+                    new { recordNumber = EditRecordNumber, results = EditResults });
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    Error = await resp.Content.ReadAsStringAsync();
+                    return;
+                }
+            }
+
+            ShowModal = false;
+            await Load();
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        Error = null;
+
+        var resp = await Http.DeleteAsync($"api/doctor/patients/{PatientId}/records/{id}");
+        if (!resp.IsSuccessStatusCode)
+        {
+            Error = await resp.Content.ReadAsStringAsync();
+            return;
+        }
+
+        await Load();
+    }
+
+    private sealed class Row
+    {
+        public int id { get; set; }
+        public int appointmentId { get; set; }
+        public string? recordNumber { get; set; }
+        public string? results { get; set; }
+        public DateTime appointmentStartTime { get; set; }
+    }
+
+    private sealed class AppointmentRow
+    {
+        public int id { get; set; }
+        public DateTime startTime { get; set; }
+    }
+    private void OpenPrescriptions(int medicalRecordId)
+    {
+        Nav.NavigateTo($"/doctor/records/{medicalRecordId}/prescriptions");
+    }
+
+}
