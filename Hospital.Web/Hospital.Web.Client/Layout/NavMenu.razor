@@ -12,7 +12,7 @@
             <Authorized>
                 <div class="topbar-links">
                     <NavLink class="topbar-btn" href="" Match="NavLinkMatch.All">Home</NavLink>
-                    <NavLink class="topbar-btn" href="patient" Match="NavLinkMatch.Prefix">Objednávky</NavLink>
+                    
                 </div>
             </Authorized>
 
@@ -22,7 +22,32 @@
                     <NavLink class="topbar-btn" href="register" Match="NavLinkMatch.All">Register</NavLink>
                 </div>
             </NotAuthorized>
+
         </AuthorizeView>
+        <AuthorizeView Roles="Admin">
+            <li class="nav-item">
+                <NavLink class="topbar-btn" href="admin/users" Match="NavLinkMatch.Prefix">Účty</NavLink>
+            </li>
+        </AuthorizeView>
+        <AuthorizeView Roles="Pacient">
+            <li class="nav-item">
+                <NavLink class="topbar-btn" href="patient" Match="NavLinkMatch.Prefix">Objednávky</NavLink>
+            </li>
+        </AuthorizeView>
+        <AuthorizeView Roles="Lekár">
+            <li class="nav-item">
+                <NavLink class="topbar-btn" href="doctor/appointments" Match="NavLinkMatch.All">
+                    Moje objednávky
+                </NavLink>
+
+                <NavLink class="topbar-btn" href="doctor/slots">
+                    Moje termíny
+                </NavLink>
+            </li>
+        </AuthorizeView>
+       
+
+
 
         <AuthorizeView>
             <Authorized Context="ctx">
@@ -34,6 +59,8 @@
                 </div>
             </Authorized>
         </AuthorizeView>
+        
+
     </div>
 </nav>
 

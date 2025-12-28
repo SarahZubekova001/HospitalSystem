@@ -1,0 +1,377 @@
+﻿@page "/admin/users"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+@inject HttpClient Http
+
+<h3 class="mb-4">Správa používateľov</h3>
+
+@if (loading)
+{
+    <div>Načítavam…</div>
+}
+else if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+else
+{
+    @foreach (var group in GroupedUsers)
+    {
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <div class="fw-semibold">@group.RoleName</div>
+                <div class="text-muted small">@group.Users.Count používateľov</div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table mb-0 align-middle">
+                    <thead>
+                        <tr>
+                            <th>Meno</th>
+                            <th>Email</th>
+                            <th>Rodné číslo</th>
+                            <th style="width:260px">Rola</th>
+                            <th style="width:140px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in group.Users)
+                        {
+                            <tr>
+                                <td>@u.FullName</td>
+                                <td>@u.Email</td>
+                                <td>@u.BirthNumber</td>
+                                <td>
+                                    <select class="form-select"
+                                            value="@u.SelectedRoleId"
+                                            @onchange="(e => OnRoleChanged(u, e))">
+                                        @foreach (var r in roles)
+                                        {
+                                            <option value="@r.Id">@r.Name</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary w-100"
+                                            disabled="@(u.Saving || u.SelectedRoleId == u.RoleId)"
+                                            @onclick="(() => SaveRole(u))">
+                                        @(u.Saving ? "Ukladám…" : "Uložiť")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+@if (showDoctorModal && modalUser is not null)
+{
+    <div class="modal-backdrop fade show"></div>
+
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nastaviť rolu Lekár</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDoctorModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <div class="fw-semibold">@modalUser.FullName</div>
+                        <div class="text-muted small">@modalUser.Email</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Špecializácia</label>
+                        <select class="form-select" @bind="doctorSpecializationId">
+                            <option value="0">Vyberte špecializáciu</option>
+                            @foreach (var s in specializations)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Číslo licencie</label>
+                        <input class="form-control" @bind="doctorLicenseNumber" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Pracovný telefón</label>
+                        <input class="form-control" @bind="doctorWorkPhone" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(modalError))
+                    {
+                        <div class="alert alert-danger mb-0">@modalError</div>
+                    }
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CloseDoctorModal" disabled="@modalSaving">Zrušiť</button>
+                    <button class="btn btn-primary" @onclick="ConfirmDoctorRole" disabled="@modalSaving">
+                        @(modalSaving ? "Ukladám…" : "Potvrdiť")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool loading = true;
+    private string? error;
+
+    private List<RoleItem> roles = new();
+    private List<UserRow> users = new();
+    private List<SpecItem> specializations = new();
+
+    private bool showDoctorModal;
+    private bool modalSaving;
+    private string? modalError;
+    private UserRow? modalUser;
+
+    private int doctorSpecializationId;
+    private string doctorLicenseNumber = "";
+    private string doctorWorkPhone = "";
+
+    private int DoctorRoleId => roles.First(r => r.Name == "Lekár").Id;
+
+    private IEnumerable<UserGroup> GroupedUsers =>
+        users
+            .GroupBy(u => u.Role)
+            .OrderBy(g => g.Key)
+            .Select(g => new UserGroup(g.Key, g.ToList()));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        loading = true;
+        error = null;
+
+        try
+        {
+            var resp = await Http.GetFromJsonAsync<GetAllResponse>("/api/admin/users");
+            if (resp is null)
+            {
+                error = "Nepodarilo sa načítať dáta.";
+                return;
+            }
+
+            roles = resp.roles ?? new();
+            users = (resp.users ?? new())
+                .Select(x => new UserRow
+                {
+                    Id = x.id,
+                    Email = x.email,
+                    RoleId = x.roleId,
+                    Role = x.role,
+                    BirthNumber = x.birthNumber,
+                    FullName = x.fullName,
+                    SelectedRoleId = x.roleId
+                })
+                .ToList();
+
+            specializations = await Http.GetFromJsonAsync<List<SpecItem>>("/api/admin/lookups/specializations") ?? new();
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OnRoleChanged(UserRow u, ChangeEventArgs e)
+    {
+        if (e.Value is null) return;
+        if (!int.TryParse(e.Value.ToString(), out var id)) return;
+
+        u.SelectedRoleId = id;
+
+        var doctorRole = roles.FirstOrDefault(r => r.Name == "Lekár");
+        if (doctorRole is not null && id == doctorRole.Id)
+        {
+            OpenDoctorModal(u);
+        }
+    }
+
+    private async Task SaveRole(UserRow u)
+    {
+        modalError = null;
+        error = null;
+
+        var doctorRole = roles.FirstOrDefault(r => r.Name == "Lekár");
+        if (doctorRole is not null && u.SelectedRoleId == doctorRole.Id)
+        {
+            OpenDoctorModal(u);
+            return;
+        }
+
+        u.Saving = true;
+
+        try
+        {
+            var resp = await Http.PutAsJsonAsync($"/api/admin/users/{u.Id}/role",
+                new UpdateRoleRequest(u.SelectedRoleId, null));
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                var msg = await resp.Content.ReadAsStringAsync();
+                error = string.IsNullOrWhiteSpace(msg) ? "Uloženie zlyhalo." : msg;
+                return;
+            }
+
+            var newRoleName = roles.FirstOrDefault(r => r.Id == u.SelectedRoleId)?.Name;
+            u.RoleId = u.SelectedRoleId;
+            if (!string.IsNullOrWhiteSpace(newRoleName))
+                u.Role = newRoleName!;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+        }
+        finally
+        {
+            u.Saving = false;
+        }
+    }
+
+    private void OpenDoctorModal(UserRow u)
+    {
+        showDoctorModal = true;
+        modalSaving = false;
+        modalError = null;
+        modalUser = u;
+
+        doctorSpecializationId = 0;
+        doctorLicenseNumber = "";
+        doctorWorkPhone = "";
+        StateHasChanged();
+    }
+
+    private void CloseDoctorModal()
+    {
+        showDoctorModal = false;
+        modalSaving = false;
+        modalError = null;
+
+        if (modalUser is not null && modalUser.RoleId != DoctorRoleId)
+            modalUser.SelectedRoleId = modalUser.RoleId;
+
+        modalUser = null;
+    }
+
+    private async Task ConfirmDoctorRole()
+    {
+        if (modalUser is null) return;
+
+        modalError = null;
+
+        if (doctorSpecializationId <= 0)
+        {
+            modalError = "Vyberte špecializáciu.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(doctorLicenseNumber))
+        {
+            modalError = "Zadajte číslo licencie.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(doctorWorkPhone))
+        {
+            modalError = "Zadajte pracovný telefón.";
+            return;
+        }
+
+        modalSaving = true;
+
+        try
+        {
+            var req = new UpdateRoleRequest(
+                DoctorRoleId,
+                new StaffPayload(doctorSpecializationId, doctorLicenseNumber, doctorWorkPhone)
+            );
+
+            var resp = await Http.PutAsJsonAsync($"/api/admin/users/{modalUser.Id}/role", req);
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                var msg = await resp.Content.ReadAsStringAsync();
+                modalError = string.IsNullOrWhiteSpace(msg) ? "Uloženie zlyhalo." : msg;
+                return;
+            }
+
+            modalUser.RoleId = DoctorRoleId;
+            modalUser.SelectedRoleId = DoctorRoleId;
+            modalUser.Role = "Lekár";
+
+            showDoctorModal = false;
+            modalUser = null;
+        }
+        catch (Exception ex)
+        {
+            modalError = ex.Message;
+        }
+        finally
+        {
+            modalSaving = false;
+        }
+    }
+
+    private sealed class GetAllResponse
+    {
+        public List<UserDto>? users { get; set; }
+        public List<RoleItem>? roles { get; set; }
+    }
+
+    private sealed class UserDto
+    {
+        public int id { get; set; }
+        public string email { get; set; } = "";
+        public int roleId { get; set; }
+        public string role { get; set; } = "";
+        public string birthNumber { get; set; } = "";
+        public string fullName { get; set; } = "";
+    }
+
+    private sealed class RoleItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    private sealed class SpecItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    private sealed class UserRow
+    {
+        public int Id { get; set; }
+        public string Email { get; set; } = "";
+        public int RoleId { get; set; }
+        public string Role { get; set; } = "";
+        public string BirthNumber { get; set; } = "";
+        public string FullName { get; set; } = "";
+
+        public int SelectedRoleId { get; set; }
+        public bool Saving { get; set; }
+    }
+
+    private sealed record UserGroup(string RoleName, List<UserRow> Users);
+
+    private sealed record StaffPayload(int SpecializationId, string LicenseNumber, string WorkPhone);
+    private sealed record UpdateRoleRequest(int RoleId, StaffPayload? Staff);
+}

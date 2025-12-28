@@ -1,0 +1,140 @@
+﻿@page "/doctor/appointments"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Lekár")]
+@inject HttpClient Http
+
+<h3>Objednaní pacienti</h3>
+
+<div class="d-flex gap-2 align-items-center mb-3">
+    <button class="btn btn-outline-secondary" @onclick="PrevDay">◀</button>
+    <input class="form-control" style="max-width: 180px;" type="date" value="@SelectedDate" @onchange="OnDateChanged" />
+    <button class="btn btn-outline-secondary" @onclick="NextDay">▶</button>
+    <button class="btn btn-primary" @onclick="Load">Načítať</button>
+</div>
+
+@if (Loading)
+{
+    <div>Načítavam...</div>
+}
+else if (Items.Count == 0)
+{
+    <div>Žiadne objednávky na tento deň.</div>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Čas</th>
+                <th>Pacient</th>
+                <th>Kontakt</th>
+                <th>Typ</th>
+                <th>Stav</th>
+                <th>Dôvod</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var a in Items)
+            {
+                <tr class="align-middle">
+                    <td class="text-nowrap">
+                        @a.startTime.ToLocalTime().ToString("HH:mm") - @a.endTime.ToLocalTime().ToString("HH:mm")
+                    </td>
+
+                    <td class="text-nowrap">
+                        <div>@a.fullName</div>
+                        <div class="text-muted small">@a.birthNumber</div>
+                    </td>
+
+                    <td>
+                        <div class="d-flex flex-column gap-1">
+                            <div class="text-nowrap">
+                                <span class="text-muted me-2">☎</span>
+                                <span>@(string.IsNullOrWhiteSpace(a.phone) ? "—" : a.phone)</span>
+                            </div>
+                            <div class="text-nowrap">
+                                <span class="text-muted me-2">✉</span>
+                                <span>@(string.IsNullOrWhiteSpace(a.email) ? "—" : a.email)</span>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td class="text-nowrap">@a.appointmentType</td>
+                    <td class="text-nowrap">@a.status</td>
+                    <td>@a.reason</td>
+                </tr>
+            }
+        </tbody>
+
+    </table>
+}
+
+@code {
+    private bool Loading;
+    private DateTime SelectedDay = DateTime.Today;
+    private string SelectedDate = DateTime.Today.ToString("yyyy-MM-dd");
+    private List<Row> Items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private Task OnDateChanged(ChangeEventArgs e)
+    {
+        SelectedDate = e.Value?.ToString() ?? DateTime.Today.ToString("yyyy-MM-dd");
+        return Task.CompletedTask;
+    }
+
+    private async Task Load()
+    {
+        if (!DateTime.TryParse(SelectedDate, out var dt))
+            dt = DateTime.Today;
+
+        SelectedDay = dt.Date;
+
+        Loading = true;
+        try
+        {
+            Items = await Http.GetFromJsonAsync<List<Row>>($"api/doctor/appointments?date={SelectedDay:yyyy-MM-dd}") ?? new();
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task PrevDay()
+    {
+        SelectedDay = SelectedDay.AddDays(-1);
+        SelectedDate = SelectedDay.ToString("yyyy-MM-dd");
+        await Load();
+    }
+
+    private async Task NextDay()
+    {
+        SelectedDay = SelectedDay.AddDays(1);
+        SelectedDate = SelectedDay.ToString("yyyy-MM-dd");
+        await Load();
+    }
+
+    private sealed class Row
+    {
+        public int id { get; set; }
+        public int slotId { get; set; }
+        public DateTime startTime { get; set; }
+        public DateTime endTime { get; set; }
+        public int statusId { get; set; }
+        public string status { get; set; } = "";
+        public int appointmentTypeId { get; set; }
+        public string appointmentType { get; set; } = "";
+        public int patientId { get; set; }
+        public string birthNumber { get; set; } = "";
+        public string fullName { get; set; } = "";
+        public string? phone { get; set; }
+        public string? email { get; set; }
+        public string? reason { get; set; }
+        public string? notes { get; set; }
+    }
+}
