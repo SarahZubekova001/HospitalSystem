@@ -58,7 +58,7 @@ else
             @foreach (var s in SlotItems)
             {
                 <tr>
-                    <td>@s.startTime.ToString("HH:mm") - @s.endTime.ToString("HH:mm")</td>
+                    <td>@s.startTime.ToLocalTime().ToString("HH:mm") - @s.endTime.ToLocalTime().ToString("HH:mm")</td>
                     <td>
                         <input type="checkbox" checked="@s.isAvailable" @onchange="(e) => Toggle(s, e)" />
                     </td>
@@ -129,16 +129,21 @@ else
     {
         Error = null;
 
+        if (!DateTime.TryParse(SelectedDate, out var dt))
+            dt = DateTime.Today;
+
+        SelectedDay = dt.Date;
+
         if (!TimeSpan.TryParse(NewStart, out var st) || !TimeSpan.TryParse(NewEnd, out var et))
         {
             Error = "Zlý formát času.";
             return;
         }
 
-        var start = SelectedDay.Date.Add(st);
-        var end = SelectedDay.Date.Add(et);
+        var startLocal = SelectedDay.Add(st);
+        var endLocal = SelectedDay.Add(et);
 
-        var resp = await Http.PostAsJsonAsync("api/doctor/slots", new CreateSlotRequest(start, end));
+        var resp = await Http.PostAsJsonAsync("api/doctor/slots", new CreateSlotRequest(startLocal, endLocal));
         if (!resp.IsSuccessStatusCode)
         {
             Error = await resp.Content.ReadAsStringAsync();

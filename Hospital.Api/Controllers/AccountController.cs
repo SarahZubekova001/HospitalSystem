@@ -1,8 +1,13 @@
 ﻿using Hospital.Api.Data;
 using Hospital.Api.Entities;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+
+
 
 namespace Hospital.Api.Controllers;
 
@@ -21,14 +26,15 @@ public class AccountController : ControllerBase
     [HttpGet("profile")]
     public async Task<IActionResult> GetProfile()
     {
-        var currentLoginEmail = User.FindFirst("email")?.Value ?? User.Identity?.Name;
-        if (string.IsNullOrWhiteSpace(currentLoginEmail)) return Unauthorized();
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            return Unauthorized();
 
         var user = await _db.UserAccounts
             .AsNoTracking()
             .Include(u => u.Role)
             .Include(u => u.Person)
-            .Where(u => u.LoginEmail == currentLoginEmail)
+            .Where(u => u.Id == userId)
             .Select(u => new
             {
                 id = u.Id,
@@ -141,12 +147,14 @@ public class AccountController : ControllerBase
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest req)
     {
-        var currentLoginEmail = User.FindFirst("email")?.Value ?? User.Identity?.Name;
-        if (string.IsNullOrWhiteSpace(currentLoginEmail)) return Unauthorized();
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            return Unauthorized();
 
         var ua = await _db.UserAccounts
             .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => u.LoginEmail == currentLoginEmail);
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
 
         if (ua == null) return NotFound();
 
@@ -261,6 +269,26 @@ public class AccountController : ControllerBase
         await tx.CommitAsync();
 
         _db.ChangeTracker.Clear();
+        var fresh = await _db.UserAccounts
+            .AsNoTracking()
+            .Include(u => u.Role)
+            .Include(u => u.Person)
+            .FirstAsync(u => u.Id == ua.Id);
+
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, fresh.Id.ToString()),
+            new(ClaimTypes.Name, fresh.LoginEmail),
+            new(ClaimTypes.Role, fresh.Role.Name),
+            new("personId", fresh.PersonId),
+            new("fullName", $"{fresh.Person.FirstName} {fresh.Person.LastName}")
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+
+        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
         return NoContent();
     }
 }

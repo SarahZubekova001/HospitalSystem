@@ -1,0 +1,96 @@
+﻿@page "/patient/records/{MedicalRecordId:int}/prescriptions"
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Pacient")]
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<h3>Moje predpisy</h3>
+
+<div class="d-flex gap-2 mb-3">
+    <button class="btn btn-outline-secondary" @onclick="Back">← Späť</button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Error))
+{
+    <div class="alert alert-danger">@Error</div>
+}
+
+@if (Loading)
+{
+    <div>Načítavam...</div>
+}
+else if (Items.Count == 0)
+{
+    <div>Žiadne predpisy.</div>
+}
+else
+{
+    <table class="table table-striped align-middle" style="max-width: 1100px;">
+        <thead>
+            <tr>
+                <th>Liek</th>
+                <th>Účinná látka</th>
+                <th>Dávkovanie</th>
+                <th>Množstvo</th>
+                <th>Platné do</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Items)
+            {
+                <tr>
+                    <td class="fw-semibold">@p.medicationName</td>
+                    <td class="text-muted">@p.activeSubstance</td>
+                    <td>@p.dosage</td>
+                    <td>@p.quantity</td>
+                    <td>@(p.validUntil == null ? "—" : p.validUntil.Value.ToString("dd.MM.yyyy"))</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter] public int MedicalRecordId { get; set; }
+
+    private bool Loading;
+    private string? Error;
+    private List<Row> Items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        Loading = true;
+        Error = null;
+
+        try
+        {
+            Items = await Http.GetFromJsonAsync<List<Row>>($"api/patient/records/{MedicalRecordId}/prescriptions") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+
+        Loading = false;
+    }
+
+    private void Back() => Nav.NavigateTo("/patient/records");
+
+    private sealed class Row
+    {
+        public int id { get; set; }
+        public int medicalRecordId { get; set; }
+        public int medicationId { get; set; }
+        public string medicationName { get; set; } = "";
+        public string activeSubstance { get; set; } = "";
+        public string? dosage { get; set; }
+        public int quantity { get; set; }
+        public DateOnly? validUntil { get; set; }
+    }
+}

@@ -77,12 +77,11 @@ public class DoctorController : ControllerBase
         var dayStartLocal = DateTime.SpecifyKind(date.Date, DateTimeKind.Local);
         var dayEndLocal = dayStartLocal.AddDays(1);
 
-        var dayStart = dayStartLocal.ToUniversalTime();
-        var dayEnd = dayEndLocal.ToUniversalTime();
-
+        var dayStartUtc = dayStartLocal.ToUniversalTime();
+        var dayEndUtc = dayEndLocal.ToUniversalTime();
 
         var slots = await _db.AppointmentSlots
-            .Where(s => s.StaffId == staffId.Value && s.StartTime >= dayStart && s.StartTime < dayEnd)
+            .Where(s => s.StaffId == staffId.Value && s.StartTime >= dayStartUtc && s.StartTime < dayEndUtc)
             .OrderBy(s => s.StartTime)
             .Select(s => new
             {
@@ -104,8 +103,11 @@ public class DoctorController : ControllerBase
         var staffId = await GetCurrentStaffId();
         if (staffId == null) return Unauthorized();
 
-        var startUtc = DateTime.SpecifyKind(req.StartTime, DateTimeKind.Local).ToUniversalTime();
-        var endUtc = DateTime.SpecifyKind(req.EndTime, DateTimeKind.Local).ToUniversalTime();
+        var startLocal = DateTime.SpecifyKind(req.StartTime, DateTimeKind.Local);
+        var endLocal = DateTime.SpecifyKind(req.EndTime, DateTimeKind.Local);
+
+        var startUtc = startLocal.ToUniversalTime();
+        var endUtc = endLocal.ToUniversalTime();
 
         if (endUtc <= startUtc)
             return BadRequest("EndTime must be after StartTime.");
@@ -137,6 +139,7 @@ public class DoctorController : ControllerBase
             isAvailable = slot.IsAvailable
         });
     }
+
 
 
     [HttpDelete("slots/{id:int}")]

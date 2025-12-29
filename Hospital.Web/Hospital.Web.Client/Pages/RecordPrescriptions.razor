@@ -70,6 +70,16 @@ else
                             <label class="form-label">Hľadať liek</label>
                             <input class="form-control" placeholder="napr. Paralen"
                                    @bind="MedQuery" @bind:event="oninput" />
+
+                            @if (MedLoading)
+                            {
+                                <div class="text-muted small mt-2">Hľadám…</div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(MedQuery) && MedQuery.Trim().Length >= 2 && MedResults.Count == 0)
+                            {
+                                <div class="text-muted small mt-2">Nenašli sa žiadne lieky.</div>
+                            }
+
                             @if (MedResults.Count > 0)
                             {
                                 <div class="list-group mt-2" style="max-height: 240px; overflow:auto;">
@@ -127,7 +137,19 @@ else
 
     private bool ShowModal;
 
-    private string MedQuery = "";
+    private bool MedLoading;
+    private string _medQuery = "";
+    private string MedQuery
+    {
+        get => _medQuery;
+        set
+        {
+            if (_medQuery == value) return;
+            _medQuery = value;
+            _ = SearchMedications();
+        }
+    }
+
     private List<MedRow> MedResults = new();
     private int? SelectedMedicationId;
     private string SelectedMedicationText = "—";
@@ -163,13 +185,18 @@ else
     private void OpenCreate()
     {
         Error = null;
-        MedQuery = "";
+
+        _medQuery = "";
         MedResults.Clear();
+        MedLoading = false;
+
         SelectedMedicationId = null;
         SelectedMedicationText = "—";
+
         EditDosage = null;
         EditQuantity = 1;
         EditValidUntilDate = null;
+
         ShowModal = true;
     }
 
@@ -179,28 +206,47 @@ else
         Error = null;
     }
 
-    private async Task OnMedQueryChanged(ChangeEventArgs _)
-    {
-        await SearchMedications();
-    }
-
     private async Task SearchMedications()
     {
         var q = MedQuery?.Trim();
+
+        if (!ShowModal)
+            return;
+
         if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
         {
             MedResults.Clear();
+            MedLoading = false;
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
-        MedResults = await Http.GetFromJsonAsync<List<MedRow>>(
-            $"api/doctor/prescriptions/medications?q={Uri.EscapeDataString(q)}") ?? new();
+        try
+        {
+            MedLoading = true;
+            await InvokeAsync(StateHasChanged);
+
+            MedResults = await Http.GetFromJsonAsync<List<MedRow>>(
+                $"api/doctor/prescriptions/medications?q={Uri.EscapeDataString(q)}") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            MedResults.Clear();
+        }
+        finally
+        {
+            MedLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private void SelectMedication(MedRow m)
     {
         SelectedMedicationId = m.id;
-        SelectedMedicationText = $"{m.name} ({m.activeSubstance})";
+        SelectedMedicationText = string.IsNullOrWhiteSpace(m.activeSubstance)
+            ? m.name
+            : $"{m.name} ({m.activeSubstance})";
         MedResults.Clear();
     }
 

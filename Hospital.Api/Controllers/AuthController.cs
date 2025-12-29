@@ -36,6 +36,11 @@ public class AuthController : ControllerBase
         string? Phone
     );
 
+    public record ChangePasswordRequest(
+        string CurrentPassword,
+        string NewPassword
+    );
+
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
@@ -64,11 +69,9 @@ public class AuthController : ControllerBase
             claims,
             CookieAuthenticationDefaults.AuthenticationScheme);
 
-        var principal = new ClaimsPrincipal(identity);
-
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
-            principal);
+            new ClaimsPrincipal(identity));
 
         return Ok(new
         {
@@ -78,63 +81,35 @@ public class AuthController : ControllerBase
         });
     }
 
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
     {
-        if (await _db.UserAccounts.AnyAsync(u => u.LoginEmail == req.Email))
-            return Conflict("Email already exists");
+        if (string.IsNullOrWhiteSpace(req.CurrentPassword) ||
+            string.IsNullOrWhiteSpace(req.NewPassword))
+            return BadRequest("Vyplň všetky polia.");
 
-        if (await _db.Persons.AnyAsync(p => p.BirthNumber == req.BirthNumber))
-            return Conflict("Person already exists");
+        if (req.NewPassword.Length < 4)
+            return BadRequest("Nové heslo musí mať aspoň 4 znakov.");
 
-        var role = await _db.Roles.SingleOrDefaultAsync(r => r.Name == "Pacient");
-        if (role is null)
-            return StatusCode(500, "Patient role missing");
+        var email = User.Identity?.Name;
+        if (email == null) return Unauthorized();
 
-        var insuranceExists = await _db.InsuranceCompanies
-            .AnyAsync(i => i.Id == req.InsuranceCompanyId);
+        var user = await _db.UserAccounts
+            .FirstOrDefaultAsync(u => u.LoginEmail == email);
 
-        if (!insuranceExists)
-            return BadRequest("Invalid insurance company");
+        if (user == null) return NotFound();
 
-        await using var tx = await _db.Database.BeginTransactionAsync();
+        var verify = _hasher.VerifyHashedPassword(
+            null!, user.PasswordHash, req.CurrentPassword);
 
-        var person = new Person
-        {
-            BirthNumber = req.BirthNumber,
-            FirstName = req.FirstName,
-            LastName = req.LastName,
-            StreetAddress = req.StreetAddress,
-            CityPostalCode = req.CityPostalCode,
-            Phone = req.Phone,
-            Email = req.Email
-        };
+        if (verify == PasswordVerificationResult.Failed)
+            return BadRequest("Aktuálne heslo nie je správne.");
 
-        _db.Persons.Add(person);
-
-        var patient = new Patient
-        {
-            BirthNumber = req.BirthNumber,
-            InsuranceCompanyId = req.InsuranceCompanyId,
-            IsActive = true
-        };
-
-        _db.Patients.Add(patient);
-
-        var user = new UserAccount
-        {
-            PersonId = req.BirthNumber,
-            LoginEmail = req.Email,
-            RoleId = role.Id,
-            PasswordHash = _hasher.HashPassword(null!, req.Password)
-        };
-
-        _db.UserAccounts.Add(user);
-
+        user.PasswordHash = _hasher.HashPassword(null!, req.NewPassword);
         await _db.SaveChangesAsync();
-        await tx.CommitAsync();
 
-        return Ok(new { message = "Registered" });
+        return NoContent();
     }
 
     [Authorize]
@@ -161,5 +136,4 @@ public class AuthController : ControllerBase
             fullName = User.FindFirst("fullName")?.Value
         });
     }
-
 }
