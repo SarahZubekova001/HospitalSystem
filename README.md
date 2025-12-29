@@ -77,3 +77,10 @@ HTML, CSS
 - Prístupná výhradne cez backend (Hospital.Api)
 
 - Používa sa Entity Framework Core (Code First)
+
+
+
+prihlasovanie:
+  - lekar -> lekar@gmail.com
+  - admin -> admin@gmail.com
+  - pacient -> pacient@gmail.com
