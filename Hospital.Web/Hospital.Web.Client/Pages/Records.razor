@@ -38,15 +38,19 @@ else
                             Objednávka: @r.appointmentId |
                             @r.appointmentStartTime.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
                         </div>
+
+                        @if (!string.IsNullOrWhiteSpace(r.diagnosisCode) || !string.IsNullOrWhiteSpace(r.diagnosisName))
+                        {
+                            <div class="text-muted small">
+                                Diagnóza: @($"{r.diagnosisCode} {r.diagnosisName}".Trim())
+                            </div>
+                        }
                     </div>
+
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-primary btn-sm" @onclick="() => OpenEdit(r)">Upraviť</button>
                         <button class="btn btn-outline-danger btn-sm" @onclick="() => Delete(r.id)">Zmazať</button>
-                        <button class="btn btn-outline-success btn-sm"
-                                @onclick="() => OpenPrescriptions(r.id)">
-                            Predpisy
-                        </button>
-
+                        <button class="btn btn-outline-success btn-sm" @onclick="() => OpenPrescriptions(r.id)">Predpisy</button>
                     </div>
                 </div>
 
@@ -84,14 +88,53 @@ else
                         </div>
                     }
 
-                    <div class="mb-2">
-                        <label class="form-label">Record number</label>
-                        <input class="form-control" @bind="EditRecordNumber" />
-                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Record number</label>
+                            <input class="form-control" @bind="EditRecordNumber" />
+                        </div>
 
-                    <div>
-                        <label class="form-label">Results</label>
-                        <textarea class="form-control" rows="8" @bind="EditResults"></textarea>
+                        <div class="col-md-6">
+                            <label class="form-label">Hľadať diagnózu</label>
+                            <input class="form-control" placeholder="napr. J06 alebo chrípka"
+                                   @bind="DiagQuery" @bind:event="oninput" />
+
+                            @if (DiagLoading)
+                            {
+                                <div class="text-muted small mt-2">Hľadám…</div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(DiagQuery) && DiagQuery.Trim().Length >= 2 && DiagResults.Count == 0)
+                            {
+                                <div class="text-muted small mt-2">Nenašli sa žiadne diagnózy.</div>
+                            }
+
+                            @if (DiagResults.Count > 0)
+                            {
+                                <div class="list-group mt-2" style="max-height: 240px; overflow:auto;">
+                                    @foreach (var d in DiagResults)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action"
+                                                @onclick="() => SelectDiagnosis(d)">
+                                            <div class="fw-semibold">@d.code</div>
+                                            <div class="text-muted small">@d.name</div>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Vybraná diagnóza</label>
+                            <div class="input-group">
+                                <input class="form-control" value="@SelectedDiagnosisText" disabled />
+                                <button class="btn btn-outline-secondary" type="button" @onclick="ClearDiagnosis">Zrušiť</button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label">Results</label>
+                            <textarea class="form-control" rows="8" @bind="EditResults"></textarea>
+                        </div>
                     </div>
                 </div>
 
@@ -121,6 +164,23 @@ else
     private string? EditResults;
 
     private List<AppointmentRow> EligibleAppointments = new();
+
+    private bool DiagLoading;
+    private string _diagQuery = "";
+    private string DiagQuery
+    {
+        get => _diagQuery;
+        set
+        {
+            if (_diagQuery == value) return;
+            _diagQuery = value;
+            _ = SearchDiagnoses();
+        }
+    }
+
+    private List<DiagRow> DiagResults = new();
+    private int? SelectedDiagnosisId;
+    private string SelectedDiagnosisText = "—";
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,6 +220,12 @@ else
         EditResults = null;
         Error = null;
 
+        _diagQuery = "";
+        DiagResults.Clear();
+        DiagLoading = false;
+        SelectedDiagnosisId = null;
+        SelectedDiagnosisText = "—";
+
         await LoadEligibleAppointments();
         ShowModal = true;
     }
@@ -172,6 +238,12 @@ else
         EditResults = r.results;
         Error = null;
 
+        _diagQuery = "";
+        DiagResults.Clear();
+        DiagLoading = false;
+        SelectedDiagnosisId = r.diagnosisId;
+        SelectedDiagnosisText = BuildDiagnosisText(r.diagnosisCode, r.diagnosisName);
+
         ShowModal = true;
     }
 
@@ -179,6 +251,62 @@ else
     {
         ShowModal = false;
         Error = null;
+    }
+
+    private string BuildDiagnosisText(string? code, string? name)
+    {
+        var t = $"{code} {name}".Trim();
+        return string.IsNullOrWhiteSpace(t) ? "—" : t;
+    }
+
+    private async Task SearchDiagnoses()
+    {
+        var q = DiagQuery?.Trim();
+
+        if (!ShowModal)
+            return;
+
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+        {
+            DiagResults.Clear();
+            DiagLoading = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        try
+        {
+            DiagLoading = true;
+            await InvokeAsync(StateHasChanged);
+
+            DiagResults = await Http.GetFromJsonAsync<List<DiagRow>>(
+                $"api/doctor/diagnoses?q={Uri.EscapeDataString(q)}") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+            DiagResults.Clear();
+        }
+        finally
+        {
+            DiagLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void SelectDiagnosis(DiagRow d)
+    {
+        SelectedDiagnosisId = d.id;
+        SelectedDiagnosisText = BuildDiagnosisText(d.code, d.name);
+        DiagResults.Clear();
+    }
+
+    private void ClearDiagnosis()
+    {
+        SelectedDiagnosisId = null;
+        SelectedDiagnosisText = "—";
+        DiagResults.Clear();
+        _diagQuery = "";
     }
 
     private async Task Save()
@@ -198,7 +326,13 @@ else
 
                 var resp = await Http.PostAsJsonAsync(
                     $"api/doctor/patients/{PatientId}/records",
-                    new { appointmentId = EditAppointmentId, recordNumber = EditRecordNumber, results = EditResults });
+                    new
+                    {
+                        appointmentId = EditAppointmentId,
+                        recordNumber = EditRecordNumber,
+                        results = EditResults,
+                        diagnosisId = SelectedDiagnosisId
+                    });
 
                 if (!resp.IsSuccessStatusCode)
                 {
@@ -210,7 +344,12 @@ else
             {
                 var resp = await Http.PutAsJsonAsync(
                     $"api/doctor/patients/{PatientId}/records/{EditingId}",
-                    new { recordNumber = EditRecordNumber, results = EditResults });
+                    new
+                    {
+                        recordNumber = EditRecordNumber,
+                        results = EditResults,
+                        diagnosisId = SelectedDiagnosisId
+                    });
 
                 if (!resp.IsSuccessStatusCode)
                 {
@@ -242,6 +381,11 @@ else
         await Load();
     }
 
+    private void OpenPrescriptions(int medicalRecordId)
+    {
+        Nav.NavigateTo($"/doctor/records/{medicalRecordId}/prescriptions");
+    }
+
     private sealed class Row
     {
         public int id { get; set; }
@@ -249,6 +393,9 @@ else
         public string? recordNumber { get; set; }
         public string? results { get; set; }
         public DateTime appointmentStartTime { get; set; }
+        public int? diagnosisId { get; set; }
+        public string? diagnosisCode { get; set; }
+        public string? diagnosisName { get; set; }
     }
 
     private sealed class AppointmentRow
@@ -256,9 +403,11 @@ else
         public int id { get; set; }
         public DateTime startTime { get; set; }
     }
-    private void OpenPrescriptions(int medicalRecordId)
-    {
-        Nav.NavigateTo($"/doctor/records/{medicalRecordId}/prescriptions");
-    }
 
+    private sealed class DiagRow
+    {
+        public int id { get; set; }
+        public string code { get; set; } = "";
+        public string name { get; set; } = "";
+    }
 }

@@ -1,6 +1,8 @@
 ﻿@page "/login"
+@page "/"
 @using System.Net.Http.Json
 @using System.Web
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Components.Authorization
 @using Hospital.Web.Client.Auth
 @inject HttpClient Http
@@ -13,30 +15,31 @@
         <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
             <div class="card shadow-sm">
                 <div class="card-body p-4">
-        
-                <h2 class="mb-4">Prihlásenie</h2>
 
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input class="form-control" @bind="email" />
-                </div>
+                    <h2 class="mb-4">Prihlásenie</h2>
 
-                <div class="mb-3">
-                    <label class="form-label">Heslo</label>
-                    <input class="form-control" type="password" @bind="password" />
-                </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input class="form-control" @bind="email" />
+                    </div>
 
-                <button class="btn btn-primary w-100" @onclick="DoLogin">Prihlásiť</button>
+                    <div class="mb-3">
+                        <label class="form-label">Heslo</label>
+                        <input class="form-control" type="password" @bind="password" />
+                    </div>
 
-                @if (!string.IsNullOrWhiteSpace(error))
-                {
-                    <div class="text-danger mt-3">@error</div>
-                }
+                    <button class="btn btn-primary w-100" @onclick="DoLogin">Prihlásiť</button>
 
-                <div class="text-center mt-3">
-                    Nemáte účet?
-                    <a href="/register">Registrujte sa</a>
-                </div>
+                    @if (!string.IsNullOrWhiteSpace(error))
+                    {
+                        <div class="text-danger mt-3">@error</div>
+                    }
+
+                    <div class="text-center mt-3">
+                        Nemáte účet?
+                        <a href="/register">Registrujte sa</a>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -47,12 +50,14 @@
     private string email = "";
     private string password = "";
     private string? error;
+
     private string returnUrl = "/";
 
     protected override async Task OnInitializedAsync()
     {
         var uri = Nav.ToAbsoluteUri(Nav.Uri);
         var query = HttpUtility.ParseQueryString(uri.Query);
+
         var url = query["returnUrl"];
         if (!string.IsNullOrWhiteSpace(url))
             returnUrl = url!;
@@ -60,7 +65,7 @@
         var state = await AspAuth.GetAuthenticationStateAsync();
         if (state.User.Identity?.IsAuthenticated ?? false)
         {
-            Nav.NavigateTo(returnUrl, true);
+            NavigateAfterLogin(state.User);
         }
     }
 
@@ -74,12 +79,31 @@
         if (resp.IsSuccessStatusCode)
         {
             AuthState.Refresh();
-            Nav.NavigateTo(returnUrl, true);
+
+            var state = await AspAuth.GetAuthenticationStateAsync();
+            NavigateAfterLogin(state.User);
             return;
         }
 
         error = await resp.Content.ReadAsStringAsync();
         if (string.IsNullOrWhiteSpace(error))
             error = "Prihlásenie zlyhalo.";
+    }
+
+    private void NavigateAfterLogin(ClaimsPrincipal user)
+    {
+        if (!string.IsNullOrWhiteSpace(returnUrl) && returnUrl != "/")
+        {
+            Nav.NavigateTo(returnUrl, forceLoad: true);
+            return;
+        }
+
+        string target =
+            user.IsInRole("Admin") ? "/admin/users" :
+            user.IsInRole("Lekár") ? "/doctor/appointments" :
+            user.IsInRole("Pacient") ? "/patient" :
+            "/";
+
+        Nav.NavigateTo(target, forceLoad: true);
     }
 }

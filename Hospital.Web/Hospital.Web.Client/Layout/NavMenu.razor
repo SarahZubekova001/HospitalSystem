@@ -14,9 +14,6 @@
         <AuthorizeView Context="rootCtx">
             <Authorized>
                 <div class="topbar-links">
-                    <NavLink class="topbar-btn" href="" Match="NavLinkMatch.All">Home</NavLink>
-                    <NavLink class="topbar-btn" href="profile" Match="NavLinkMatch.All">Môj profil</NavLink>
-
                     <AuthorizeView Roles="Admin" Context="adminCtx">
                         <Authorized>
                             <NavLink class="topbar-btn" href="admin/users" Match="NavLinkMatch.Prefix">Účty</NavLink>
@@ -27,21 +24,42 @@
                         <Authorized>
                             <NavLink class="topbar-btn" href="patient" Match="NavLinkMatch.Prefix">Objednávky</NavLink>
                             <NavLink class="topbar-btn" href="patient/records" Match="NavLinkMatch.Prefix">Moje záznamy</NavLink>
+                            <NavLink class="topbar-btn" href="patient/prescriptions" Match="NavLinkMatch.Prefix">Moje predpisy</NavLink>
+
                         </Authorized>
                     </AuthorizeView>
 
                     <AuthorizeView Roles="Lekár" Context="docCtx">
                         <Authorized>
                             <NavLink class="topbar-btn" href="doctor/patients" Match="NavLinkMatch.Prefix">Moji pacienti</NavLink>
-                            <NavLink class="topbar-btn" href="doctor/appointments" Match="NavLinkMatch.Prefix">Moje objednávky</NavLink>
-                            <NavLink class="topbar-btn" href="doctor/slots" Match="NavLinkMatch.Prefix">Moje termíny</NavLink>
+                            <NavLink class="topbar-btn" href="doctor/appointments" Match="NavLinkMatch.Prefix">Objednaní pacienti</NavLink>
+                            <NavLink class="topbar-btn" href="doctor/slots" Match="NavLinkMatch.Prefix">Moje sloty</NavLink>
+                            <NavLink class="topbar-btn" href="doctor/tlaciva" Match="NavLinkMatch.Prefix">Tlačivá</NavLink>
                         </Authorized>
                     </AuthorizeView>
                 </div>
 
                 <div class="topbar-right">
-                    <span class="topbar-user">@DisplayName</span>
-                    <button type="button" class="topbar-btn" @onclick="Logout">Logout</button>
+                    @if (MenuOpen)
+                    {
+                        <div class="user-menu-backdrop" @onclick="CloseMenu"></div>
+                    }
+
+                    <div class="user-menu" @onclick:stopPropagation="true">
+                        <button type="button" class="topbar-btn user-menu-btn" @onclick="ToggleMenu">
+                            @DisplayName
+                        </button>
+
+                        @if (MenuOpen)
+                        {
+                            <div class="user-menu-dropdown">
+                                <NavLink class="user-menu-item" href="profile" Match="NavLinkMatch.All" @onclick="CloseMenu">
+                                    Môj profil
+                                </NavLink>
+                                <button type="button" class="user-menu-item danger" @onclick="Logout">Odhlásiť</button>
+                            </div>
+                        }
+                    </div>
                 </div>
             </Authorized>
 
@@ -57,11 +75,22 @@
 
 @code {
     private string? DisplayName;
+    private bool MenuOpen;
 
     protected override async Task OnInitializedAsync()
     {
         AuthProvider.AuthenticationStateChanged += OnAuthStateChanged;
         await UpdateDisplayName(await AuthProvider.GetAuthenticationStateAsync());
+    }
+
+    private void ToggleMenu()
+    {
+        MenuOpen = !MenuOpen;
+    }
+
+    private void CloseMenu()
+    {
+        MenuOpen = false;
     }
 
     private async void OnAuthStateChanged(Task<AuthenticationState> task)
@@ -70,6 +99,7 @@
         await InvokeAsync(async () =>
         {
             await UpdateDisplayName(state);
+            MenuOpen = false;
             StateHasChanged();
         });
     }
@@ -95,6 +125,7 @@
 
     private async Task Logout()
     {
+        MenuOpen = false;
         await Http.PostAsync("/api/auth/logout", null);
         ApiAuth.Refresh();
         Nav.NavigateTo("/login", true);

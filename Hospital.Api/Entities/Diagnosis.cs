@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Hospital.Api.Entities;
 
+[Table("Diagnosis")]
 public class Diagnosis
 {
     [Key]
@@ -22,4 +23,6 @@ public class Diagnosis
     [Column("description")]
     [StringLength(200)]
     public string? Description { get; set; }
+
+    public ICollection<MedicalRecord> MedicalRecords { get; set; } = new List<MedicalRecord>();
 }

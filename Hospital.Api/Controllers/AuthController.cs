@@ -3,7 +3,6 @@ using Hospital.Api.Data;
 using Hospital.Api.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -65,9 +64,7 @@ public class AuthController : ControllerBase
             new("fullName", $"{user.Person.FirstName} {user.Person.LastName}")
         };
 
-        var identity = new ClaimsIdentity(
-            claims,
-            CookieAuthenticationDefaults.AuthenticationScheme);
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
 
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
@@ -79,6 +76,86 @@ public class AuthController : ControllerBase
             role = user.Role.Name,
             fullName = $"{user.Person.FirstName} {user.Person.LastName}"
         });
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+    {
+        var birth = (req.BirthNumber ?? "").Trim();
+        var first = (req.FirstName ?? "").Trim();
+        var last = (req.LastName ?? "").Trim();
+        var email = (req.Email ?? "").Trim();
+        var pass = (req.Password ?? "");
+
+        if (string.IsNullOrWhiteSpace(birth)) return BadRequest("Rodné číslo je povinné.");
+        if (string.IsNullOrWhiteSpace(first)) return BadRequest("Meno je povinné.");
+        if (string.IsNullOrWhiteSpace(last)) return BadRequest("Priezvisko je povinné.");
+        if (string.IsNullOrWhiteSpace(email)) return BadRequest("Email je povinný.");
+        if (!email.Contains('@')) return BadRequest("Email musí obsahovať @.");
+        if (string.IsNullOrWhiteSpace(pass)) return BadRequest("Heslo je povinné.");
+        if (pass.Length < 4) return BadRequest("Heslo musí mať aspoň 4 znaky.");
+
+        var insuranceOk = await _db.InsuranceCompanies.AnyAsync(i => i.Id == req.InsuranceCompanyId);
+        if (!insuranceOk) return BadRequest("Zvolená poisťovňa neexistuje.");
+
+        var emailExists = await _db.UserAccounts.AnyAsync(u => u.LoginEmail == email);
+        if (emailExists) return Conflict("Tento prihlasovací email už existuje.");
+
+        var birthExists = await _db.Persons.AnyAsync(p => p.BirthNumber == birth);
+        if (birthExists) return Conflict("Toto rodné číslo už existuje.");
+
+        var roleId = await _db.Roles
+            .Where(r => r.Name == "Pacient")
+            .Select(r => r.Id)
+            .FirstOrDefaultAsync();
+
+        if (roleId == 0) return BadRequest("Rola Pacient neexistuje.");
+
+        var street = string.IsNullOrWhiteSpace(req.StreetAddress) ? null : req.StreetAddress.Trim();
+        var city = string.IsNullOrWhiteSpace(req.CityPostalCode) ? null : req.CityPostalCode.Trim();
+        var phone = string.IsNullOrWhiteSpace(req.Phone) ? null : req.Phone.Trim();
+
+        await using var tx = await _db.Database.BeginTransactionAsync();
+
+        var person = new Person
+        {
+            BirthNumber = birth,
+            FirstName = first,
+            LastName = last,
+            Email = email,
+            StreetAddress = street,
+            CityPostalCode = city,
+            Phone = phone
+        };
+
+        _db.Persons.Add(person);
+        await _db.SaveChangesAsync();
+
+        var ua = new UserAccount
+        {
+            LoginEmail = email,
+            PasswordHash = _hasher.HashPassword(null!, pass),
+            RoleId = roleId,
+            PersonId = birth
+        };
+
+        _db.UserAccounts.Add(ua);
+        await _db.SaveChangesAsync();
+
+        var patient = new Patient
+        {
+            BirthNumber = birth,
+            InsuranceCompanyId = req.InsuranceCompanyId,
+            PrimaryDoctorId = null,
+            BloodType = null
+        };
+
+        _db.Patients.Add(patient);
+        await _db.SaveChangesAsync();
+
+        await tx.CommitAsync();
+
+        return Ok(new { id = ua.Id });
     }
 
     [Authorize]
@@ -100,8 +177,7 @@ public class AuthController : ControllerBase
 
         if (user == null) return NotFound();
 
-        var verify = _hasher.VerifyHashedPassword(
-            null!, user.PasswordHash, req.CurrentPassword);
+        var verify = _hasher.VerifyHashedPassword(null!, user.PasswordHash, req.CurrentPassword);
 
         if (verify == PasswordVerificationResult.Failed)
             return BadRequest("Aktuálne heslo nie je správne.");
@@ -116,9 +192,7 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
-        await HttpContext.SignOutAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme);
-
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Ok();
     }
 

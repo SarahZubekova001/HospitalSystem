@@ -6,8 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-
-
+using System.Text.RegularExpressions;
 
 namespace Hospital.Api.Controllers;
 
@@ -128,6 +127,21 @@ public class AccountController : ControllerBase
         });
     }
 
+    [HttpGet("profile/postal-exists")]
+    public async Task<IActionResult> PostalExists([FromQuery] string? psc)
+    {
+        if (string.IsNullOrWhiteSpace(psc))
+            return Ok(new { exists = true });
+
+        psc = psc.Trim();
+
+        if (!Regex.IsMatch(psc, @"^\d{5}$"))
+            return Ok(new { exists = false });
+
+        var exists = await _db.Cities.AsNoTracking().AnyAsync(c => c.PostalCode == psc);
+        return Ok(new { exists });
+    }
+
     public sealed record UpdateProfileRequest(
         string? LoginEmail,
         string? BirthNumber,
@@ -154,7 +168,6 @@ public class AccountController : ControllerBase
         var ua = await _db.UserAccounts
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.Id == userId);
-
 
         if (ua == null) return NotFound();
 
@@ -183,6 +196,32 @@ public class AccountController : ControllerBase
         {
             var emailExists = await _db.Persons.AnyAsync(p => p.Email == newContactEmail && p.BirthNumber != oldBirthNumber);
             if (emailExists) return Conflict("Tento kontaktný email už používa iný používateľ.");
+        }
+
+        if (!IsEmailWithAt(newLoginEmail))
+            return BadRequest("Prihlasovací email musí obsahovať @.");
+
+        if (!IsEmailWithAt(newContactEmail))
+            return BadRequest("Kontaktný email musí obsahovať @.");
+
+        if (!IsPhoneOk(req.Phone))
+            return BadRequest("Telefón nie je v správnom formáte.");
+
+        if (!IsPhoneOk(req.WorkPhone))
+            return BadRequest("Pracovný telefón nie je v správnom formáte.");
+
+        if (req.CityPostalCode != null)
+        {
+            var psc = req.CityPostalCode.Trim();
+            if (!string.IsNullOrWhiteSpace(psc))
+            {
+                if (!Regex.IsMatch(psc, @"^\d{5}$"))
+                    return BadRequest("PSČ musí mať presne 5 číslic.");
+
+                var pscExists = await _db.Cities.AsNoTracking().AnyAsync(c => c.PostalCode == psc);
+                if (!pscExists)
+                    return BadRequest("Zadané PSČ neexistuje v tabuľke City.");
+            }
         }
 
         if (roleName == "Pacient" && req.PrimaryDoctorId.HasValue)
@@ -248,7 +287,7 @@ public class AccountController : ControllerBase
             if (patient != null)
             {
                 if (req.BloodType != null) patient.BloodType = string.IsNullOrWhiteSpace(req.BloodType) ? null : req.BloodType.Trim();
-                if (req.PrimaryDoctorId.HasValue || req.PrimaryDoctorId == null) patient.PrimaryDoctorId = req.PrimaryDoctorId;
+                if (req.PrimaryDoctorId.HasValue) patient.PrimaryDoctorId = req.PrimaryDoctorId.Value;
             }
         }
 
@@ -261,7 +300,7 @@ public class AccountController : ControllerBase
             {
                 if (req.WorkPhone != null) staffRow.WorkPhone = string.IsNullOrWhiteSpace(req.WorkPhone) ? null : req.WorkPhone.Trim();
                 if (req.LicenseNumber != null) staffRow.LicenseNumber = string.IsNullOrWhiteSpace(req.LicenseNumber) ? staffRow.LicenseNumber : req.LicenseNumber.Trim();
-                if (req.SpecializationId.HasValue || req.SpecializationId == null) staffRow.SpecializationId = req.SpecializationId;
+                if (req.SpecializationId.HasValue) staffRow.SpecializationId = req.SpecializationId.Value;
             }
         }
 
@@ -290,5 +329,15 @@ public class AccountController : ControllerBase
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
         return NoContent();
+    }
+
+    private static bool IsEmailWithAt(string? s)
+        => string.IsNullOrWhiteSpace(s) || s.Contains('@');
+
+    private static bool IsPhoneOk(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return true;
+        s = s.Trim();
+        return Regex.IsMatch(s, @"^\+?[0-9 \-]+$");
     }
 }

@@ -1,0 +1,31 @@
+﻿@page "/doctor/tlaciva"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Lekár")]
+
+<h3>Tlačivá</h3>
+
+<div class="list-group" style="max-width: 980px;">
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+            <div class="fw-semibold">Potvrdenie PN</div>
+            <div class="text-muted small">PDF</div>
+        </div>
+        <a class="btn btn-outline-primary" href="/forms/potvrdenie_pn.pdf" download>Stiahnuť</a>
+    </div>
+
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+            <div class="fw-semibold">Žiadanka laboratorne vyšetrenie</div>
+            <div class="text-muted small">PDF</div>
+        </div>
+        <a class="btn btn-outline-primary" href="/forms/ziadanka_lab_vysetrenie.pdf" download>Stiahnuť</a>
+    </div>
+
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+            <div class="fw-semibold">Žiadanka na vyšetrenie</div>
+            <div class="text-muted small">PDF</div>
+        </div>
+        <a class="btn btn-outline-primary" href="/forms/ziadanka_vysetrenie.pdf" download>Stiahnuť</a>
+    </div>
+</div>

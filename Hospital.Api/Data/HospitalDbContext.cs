@@ -27,7 +27,6 @@ public class HospitalDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // UNIQUE constraints podľa tvojho DDL
         modelBuilder.Entity<UserAccount>().HasIndex(x => x.PersonId).IsUnique();
         modelBuilder.Entity<UserAccount>().HasIndex(x => x.LoginEmail).IsUnique();
         modelBuilder.Entity<Role>().HasIndex(x => x.Name).IsUnique();
@@ -38,31 +37,34 @@ public class HospitalDbContext : DbContext
         modelBuilder.Entity<Patient>().HasIndex(x => x.BirthNumber).IsUnique();
         modelBuilder.Entity<MedicalRecord>().HasIndex(x => x.RecordNumber).IsUnique();
 
-        // 1:1 unikáty z DDL:
-        // Appointment.appointment_slot_id UNIQUE
         modelBuilder.Entity<Appointment>()
             .HasIndex(x => x.AppointmentSlotId)
             .IsUnique();
 
-        // Medical_Record.appointment_id UNIQUE
         modelBuilder.Entity<MedicalRecord>()
             .HasIndex(x => x.AppointmentId)
             .IsUnique();
 
-        // Vzťah AppointmentSlot <-> Appointment (1:0..1)
         modelBuilder.Entity<AppointmentSlot>()
             .HasOne(s => s.Appointment)
             .WithOne(a => a.AppointmentSlot)
             .HasForeignKey<Appointment>(a => a.AppointmentSlotId);
 
-        // Vzťah Appointment <-> MedicalRecord (1:0..1)
         modelBuilder.Entity<Appointment>()
             .HasOne(a => a.MedicalRecord)
             .WithOne(m => m.Appointment)
             .HasForeignKey<MedicalRecord>(m => m.AppointmentId);
 
-        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<MedicalRecord>()
+            .HasOne(m => m.Diagnosis)
+            .WithMany(d => d.MedicalRecords)  
+            .HasForeignKey(m => m.DiagnosisId)
+            .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<MedicalRecord>()
+            .HasIndex(m => m.DiagnosisId);
+
+        base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<City>().ToTable("City");
         modelBuilder.Entity<Person>().ToTable("Person");

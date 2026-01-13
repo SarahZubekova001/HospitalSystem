@@ -1,5 +1,4 @@
 ﻿using Hospital.Api.Data;
-using Hospital.Api.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -101,7 +100,7 @@ public sealed class DoctorPrescriptionsController : ControllerBase
 
         if (req.Quantity <= 0) return BadRequest("Quantity musí byť > 0.");
 
-        var item = new Prescription
+        var item = new Entities.Prescription
         {
             MedicalRecordId = req.MedicalRecordId,
             MedicationId = req.MedicationId,

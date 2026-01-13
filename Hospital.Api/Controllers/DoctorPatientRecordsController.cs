@@ -26,21 +26,26 @@ public sealed class DoctorPatientRecordsController : ControllerBase
         if (!await IsPatientAllowed(staffId.Value, patientId))
             return Forbid();
 
-        var items = await
-            (from r in _db.MedicalRecords
-             join a in _db.Appointments on r.AppointmentId equals a.Id
-             join s in _db.AppointmentSlots on a.AppointmentSlotId equals s.Id
-             where r.PatientId == patientId && r.StaffId == staffId.Value
-             orderby r.Id descending
-             select new
-             {
-                 id = r.Id,
-                 appointmentId = r.AppointmentId,
-                 recordNumber = r.RecordNumber,
-                 results = r.Results,
-                 appointmentStartTime = s.StartTime
-             })
-            .ToListAsync();
+        var items =
+            await (from r in _db.MedicalRecords
+                   join a in _db.Appointments on r.AppointmentId equals a.Id
+                   join s in _db.AppointmentSlots on a.AppointmentSlotId equals s.Id
+                   join d in _db.Diagnoses on r.DiagnosisId equals d.Id into dj
+                   from d in dj.DefaultIfEmpty()
+                   where r.PatientId == patientId && r.StaffId == staffId.Value
+                   orderby r.Id descending
+                   select new
+                   {
+                       id = r.Id,
+                       appointmentId = r.AppointmentId,
+                       recordNumber = r.RecordNumber,
+                       results = r.Results,
+                       appointmentStartTime = s.StartTime,
+                       diagnosisId = r.DiagnosisId,
+                       diagnosisCode = d != null ? d.Icd10Code : null,
+                       diagnosisName = d != null ? d.Name : null
+                   })
+                  .ToListAsync();
 
         return Ok(items);
     }
@@ -54,22 +59,22 @@ public sealed class DoctorPatientRecordsController : ControllerBase
         if (!await IsPatientAllowed(staffId.Value, patientId))
             return Forbid();
 
-        var appointments = await
-            (from a in _db.Appointments
-             join s in _db.AppointmentSlots on a.AppointmentSlotId equals s.Id
-             where a.PatientId == patientId && s.StaffId == staffId.Value
-             orderby s.StartTime descending
-             select new
-             {
-                 id = a.Id,
-                 startTime = s.StartTime
-             })
-            .ToListAsync();
+        var appointments =
+            await (from a in _db.Appointments
+                   join s in _db.AppointmentSlots on a.AppointmentSlotId equals s.Id
+                   where a.PatientId == patientId && s.StaffId == staffId.Value
+                   orderby s.StartTime descending
+                   select new
+                   {
+                       id = a.Id,
+                       startTime = s.StartTime
+                   })
+                  .ToListAsync();
 
         return Ok(appointments);
     }
 
-    public sealed record CreateRequest(int AppointmentId, string RecordNumber, string? Results);
+    public sealed record CreateRequest(int AppointmentId, string RecordNumber, string? Results, int? DiagnosisId);
 
     [HttpPost]
     public async Task<IActionResult> Create(int patientId, [FromBody] CreateRequest req)
@@ -84,17 +89,23 @@ public sealed class DoctorPatientRecordsController : ControllerBase
         if (string.IsNullOrWhiteSpace(recordNumber))
             return BadRequest("RecordNumber je povinné.");
 
-        var appointment = await
-            (from a in _db.Appointments
-             join s in _db.AppointmentSlots on a.AppointmentSlotId equals s.Id
-             where a.Id == req.AppointmentId
-             select new
-             {
-                 a.Id,
-                 a.PatientId,
-                 StaffId = s.StaffId
-             })
-            .FirstOrDefaultAsync();
+        if (req.DiagnosisId.HasValue)
+        {
+            var diagOk = await _db.Diagnoses.AnyAsync(d => d.Id == req.DiagnosisId.Value);
+            if (!diagOk) return BadRequest("Diagnosis neexistuje.");
+        }
+
+        var appointment =
+            await (from a in _db.Appointments
+                   join s in _db.AppointmentSlots on a.AppointmentSlotId equals s.Id
+                   where a.Id == req.AppointmentId
+                   select new
+                   {
+                       a.Id,
+                       a.PatientId,
+                       StaffId = s.StaffId
+                   })
+                  .FirstOrDefaultAsync();
 
         if (appointment == null) return NotFound("Objednávka neexistuje.");
         if (appointment.PatientId != patientId) return BadRequest("Appointment nepatrí tomuto pacientovi.");
@@ -109,7 +120,8 @@ public sealed class DoctorPatientRecordsController : ControllerBase
             PatientId = patientId,
             StaffId = staffId.Value,
             RecordNumber = recordNumber,
-            Results = req.Results?.Trim()
+            Results = req.Results?.Trim(),
+            DiagnosisId = req.DiagnosisId
         };
 
         _db.MedicalRecords.Add(item);
@@ -118,7 +130,7 @@ public sealed class DoctorPatientRecordsController : ControllerBase
         return Ok(new { id = item.Id });
     }
 
-    public sealed record UpdateRequest(string RecordNumber, string? Results);
+    public sealed record UpdateRequest(string RecordNumber, string? Results, int? DiagnosisId);
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int patientId, int id, [FromBody] UpdateRequest req)
@@ -135,8 +147,15 @@ public sealed class DoctorPatientRecordsController : ControllerBase
         if (string.IsNullOrWhiteSpace(recordNumber))
             return BadRequest("RecordNumber je povinné.");
 
+        if (req.DiagnosisId.HasValue)
+        {
+            var diagOk = await _db.Diagnoses.AnyAsync(d => d.Id == req.DiagnosisId.Value);
+            if (!diagOk) return BadRequest("Diagnosis neexistuje.");
+        }
+
         item.RecordNumber = recordNumber;
         item.Results = req.Results?.Trim();
+        item.DiagnosisId = req.DiagnosisId;
 
         await _db.SaveChangesAsync();
         return Ok();

@@ -127,3 +127,51 @@ a.topbar-btn.active {
     border-color: rgba(255,255,255,0.85);
     font-weight: 700;
 }
+.user-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.user-menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+}
+
+.user-menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 190px;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.12);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.12);
+    padding: 6px;
+    z-index: 2000;
+}
+
+.user-menu-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    text-decoration: none;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+    .user-menu-item:hover {
+        background: rgba(0,0,0,.06);
+    }
+
+    .user-menu-item.danger {
+        color: #b00020;
+    }
+
+        .user-menu-item.danger:hover {
+            background: rgba(176,0,32,.08);
+        }

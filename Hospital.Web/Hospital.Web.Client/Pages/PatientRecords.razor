@@ -33,6 +33,13 @@ else
                             Objednávka: @r.appointmentId |
                             @r.appointmentStartTime.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
                         </div>
+
+                        @if (!string.IsNullOrWhiteSpace(r.diagnosisCode) || !string.IsNullOrWhiteSpace(r.diagnosisName))
+                        {
+                            <div class="text-muted small">
+                                Diagnóza: @($"{r.diagnosisCode} {r.diagnosisName}".Trim())
+                            </div>
+                        }
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-success btn-sm" @onclick="() => OpenPrescriptions(r.id)">
@@ -89,5 +96,9 @@ else
         public string? recordNumber { get; set; }
         public string? results { get; set; }
         public DateTime appointmentStartTime { get; set; }
+
+        public int? diagnosisId { get; set; }
+        public string? diagnosisCode { get; set; }
+        public string? diagnosisName { get; set; }
     }
 }

@@ -36,6 +36,12 @@ public class MedicalRecord
     [StringLength(50)]
     public string RecordNumber { get; set; } = default!;
 
+    [Column("diagnosis_id")]
+    public int? DiagnosisId { get; set; }
+
+    [ForeignKey(nameof(DiagnosisId))]
+    public Diagnosis? Diagnosis { get; set; }
+
     [Column("results")]
     [StringLength(4000)]
     public string? Results { get; set; }
