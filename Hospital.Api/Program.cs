@@ -1,27 +1,3 @@
-//var builder = WebApplication.CreateBuilder(args);
-
-//// Add services to the container.
-
-//builder.Services.AddControllers();
-//// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-//builder.Services.AddOpenApi();
-
-//var app = builder.Build();
-
-//// Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-//{
-//    app.MapOpenApi();
-//}
-
-//app.UseHttpsRedirection();
-
-//app.UseAuthorization();
-
-//app.MapControllers();
-
-//app.Run();
-
 using Hospital.Api.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
@@ -76,28 +52,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 
 
-// Nechám vypnuté, aby a to nemátlo.
-// Ak by si niekedy volala API priamo z iného originu, potom si ho zapni a nastav reálne porty.
-/*
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("WasmClient", policy =>
-    {
-        policy
-            .WithOrigins("https://localhost:7014", "http://localhost:5131")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
-*/
-
 var app = builder.Build();
 
-
-//app.UseHttpsRedirection();
-
-// app.UseCors("WasmClient"); // len ak zapneš CORS vyššie
 
 app.UseAuthentication();
 app.UseAuthorization();

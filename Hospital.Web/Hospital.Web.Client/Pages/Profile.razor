@@ -293,7 +293,7 @@ else
     {
         if (Model == null) return;
 
-        await CheckPostal(default);
+        await CheckPostal(new FocusEventArgs());
         if (!string.IsNullOrWhiteSpace(PostalError))
         {
             Error = PostalError;

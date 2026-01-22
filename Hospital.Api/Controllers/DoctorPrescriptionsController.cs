@@ -104,7 +104,7 @@ public sealed class DoctorPrescriptionsController : ControllerBase
         {
             MedicalRecordId = req.MedicalRecordId,
             MedicationId = req.MedicationId,
-            Dosage = string.IsNullOrWhiteSpace(req.Dosage) ? null : req.Dosage.Trim(),
+            Dosage = string.IsNullOrWhiteSpace(req.Dosage) ? string.Empty : req.Dosage.Trim(),
             Quantity = req.Quantity,
             ValidUntil = req.ValidUntil.HasValue ? DateOnly.FromDateTime(req.ValidUntil.Value) : (DateOnly?)null
         };
